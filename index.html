@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal de Implantação - MG Controle</title>
+  <link rel="stylesheet" href="static/styles.css" />
+</head>
+<body>
+
+  <!-- Barra superior padrão -->
+  <header class="topbar">
+    <img src="data/imagens/logo.png" alt="MG Controle" class="topbar-logo" />
+    <div class="topbar-info">
+      <h1 class="topbar-title">Portal de Implantação</h1>
+    </div>
+    <button class="btn-tema" onclick="alternarTema()">Tema escuro</button>
+  </header>
+
+  <!-- Tela 1: lista de grupos a implantar -->
+  <main class="container" id="tela-1">
+    <div class="busca-wrap">
+      <input type="text" id="busca" class="busca-input"
+             placeholder="Pesquisar grupo ou data..." oninput="filtrarLista()" />
+    </div>
+    <div class="lista-grupos" id="lista-grupos"></div>
+    <div class="lista-vazia hidden" id="lista-vazia">Nenhum grupo encontrado.</div>
+  </main>
+
+  <!-- Tela 2: detalhe da implantação -->
+  <main class="container hidden" id="tela-2">
+    <button class="btn-voltar" onclick="voltarParaLista()">&#8592; Voltar</button>
+    <div id="grupo-detalhe"></div>
+  </main>
+
+  <script src="static/api.js"></script>
+  <script src="static/app.js"></script>
+</body>
+</html>
