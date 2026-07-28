@@ -67,8 +67,10 @@ function renderLista(lista) {
           <span class="mini-prog" style="background:${corProg}">${g.progresso}%</span>
         </div>
         <div class="card-grupo-barra"><div class="card-grupo-barra-fill" style="width:${g.progresso}%; background:${corProg}"></div></div>
-        ${g.vigencia ? `<div class="card-grupo-vigencia">Vigência <span>${formatarVigenciaCard(g.vigencia)}</span></div>` : ''}
-        <div class="card-grupo-datas-titulo">Data de Implantação</div>
+        <div class="card-grupo-secao-header">
+          <span class="card-grupo-datas-titulo">Data de Implantação</span>
+          ${g.vigencia ? `<span class="card-grupo-vigencia">Vigência <span>${formatarVigenciaCard(g.vigencia)}</span></span>` : ''}
+        </div>
         <div class="card-grupo-datas">
           ${colunaDataCard('DP', imp.dp)}
           ${colunaDataCard('EF', imp.ef)}
@@ -191,21 +193,29 @@ function caixaContratuais(grupo) {
 }
 
 // ── Lista de clientes do grupo ────────────────────────────────
+function badgeRegime(regime) {
+  if (!regime) return '<span class="vazio">—</span>';
+  const classe = /SN/i.test(regime) ? 'badge-regime--sn' : 'badge-regime--outro';
+  return `<span class="badge-regime ${classe}">${escapar(regime)}</span>`;
+}
+
 function secaoClientes(grupo) {
   const linhas = grupo.empresas.map(e => `
     <tr>
-      <td>${escapar(e.id)}</td>
-      <td>${escapar(e.razaoSocial)}</td>
-      <td>${escapar(e.regime)}</td>
+      <td class="td-id">${escapar(e.id)}</td>
+      <td class="td-nome">${escapar(e.razaoSocial)}</td>
+      <td>${badgeRegime(e.regime)}</td>
     </tr>
   `).join('');
   return `
     <div class="secao">
-      <div class="secao-titulo">Clientes do grupo</div>
-      <table class="clientes-tabela">
-        <thead><tr><th>ID</th><th>Nome</th><th>Tributação</th></tr></thead>
-        <tbody>${linhas || '<tr><td colspan="3" class="vazio">Nenhum cliente cadastrado.</td></tr>'}</tbody>
-      </table>
+      <div class="secao-titulo">Clientes do grupo <span class="secao-titulo-contagem">${grupo.empresas.length}</span></div>
+      <div class="clientes-tabela-wrap">
+        <table class="clientes-tabela">
+          <thead><tr><th>ID</th><th>Nome</th><th>Tributação</th></tr></thead>
+          <tbody>${linhas || '<tr><td colspan="3" class="vazio">Nenhum cliente cadastrado.</td></tr>'}</tbody>
+        </table>
+      </div>
     </div>
   `;
 }

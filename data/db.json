@@ -283,7 +283,7 @@
           "dp": false,
           "ef": false,
           "ctb": false,
-          "paralegal": false
+          "paralegal": true
         },
         {
           "id": "et2",
@@ -390,50 +390,50 @@
         {
           "id": "et1",
           "nome": "Cadastrar o cliente no sistema",
-          "dp": false,
-          "ef": false,
+          "dp": true,
+          "ef": true,
           "ctb": true,
-          "paralegal": false
+          "paralegal": true
         },
         {
           "id": "et2",
           "nome": "Importar tabelas e plano de contas",
-          "dp": false,
-          "ef": false,
+          "dp": true,
+          "ef": true,
           "ctb": true,
-          "paralegal": false
+          "paralegal": true
         },
         {
           "id": "et3",
           "nome": "Solicitar procurações e certificados",
-          "dp": false,
-          "ef": false,
+          "dp": true,
+          "ef": true,
           "ctb": true,
-          "paralegal": false
+          "paralegal": true
         },
         {
           "id": "et4",
           "nome": "Parametrizar impostos e obrigações",
-          "dp": false,
-          "ef": false,
+          "dp": true,
+          "ef": true,
           "ctb": true,
-          "paralegal": false
+          "paralegal": true
         },
         {
           "id": "et5",
           "nome": "Configurar obrigações acessórias",
-          "dp": false,
-          "ef": false,
+          "dp": true,
+          "ef": true,
           "ctb": true,
-          "paralegal": false
+          "paralegal": true
         },
         {
           "id": "et6",
           "nome": "Validar primeira competência",
-          "dp": false,
-          "ef": false,
+          "dp": true,
+          "ef": true,
           "ctb": true,
-          "paralegal": false
+          "paralegal": true
         }
       ]
     },
