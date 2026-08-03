@@ -3,7 +3,7 @@
 /* ── Tema claro ── */
 :root {
   color-scheme: light;
-  --bg-page: #d0d0d0;
+  --bg-page: #fefefe;
   --bg-card: #ffffff;
   --bg-card-alt: #fafafa;
   --bg-box: #fbfbfb;
@@ -17,8 +17,8 @@
   --border-default: #c9cbcd;
   --border-row: #dcdcdc;
   --ok-bg: #e6f4ea; --ok-tx: #1e7d34;
-  --pend-bg: #fdecea; --pend-tx: #b3261e;
-  --accent: #C00000;
+  --pend-bg: #fdecea; --pend-tx: #0015ff;
+  --accent: #ba4b4b;
 }
 
 /* ── Tema escuro ── */
@@ -44,7 +44,10 @@ body.tema-escuro {
 
 body {
   font-family: 'Segoe UI', Arial, sans-serif;
-  background-color: var(--bg-page);
+  background:
+    radial-gradient(ellipse 900px 400px at 50% 0%, rgba(192,0,0,.07), transparent 65%),
+    var(--bg-page);
+  background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
 }
@@ -119,9 +122,9 @@ body {
   background: linear-gradient(90deg, #C00000, #ff6a6a);
 }
 .card-grupo:hover {
-  box-shadow: 0 16px 32px rgba(192,0,0,.22);
+  box-shadow: 0 16px 32px rgba(192,0,0,.13);
   transform: translateY(-5px);
-  border-color: rgba(192,0,0,.35);
+  border-color: rgba(192,0,0,.18);
 }
 .card-grupo-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; margin-bottom: 12px; }
 .card-grupo-nome-wrap { display: flex; align-items: center; gap: 7px; min-width: 0; }
@@ -189,7 +192,7 @@ body {
 .grupo-sub { font-size: .82rem; color: var(--text-muted); }
 
 /* ── Cards de implantação por departamento ── */
-.grid-deptos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; align-items: start; }
+.grid-deptos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 22px; align-items: start; }
 .card-depto {
   background: var(--bg-card); border: 1px solid var(--border-default);
   border-bottom: 5px solid #C00000; border-radius: 8px; overflow: hidden;
@@ -231,6 +234,20 @@ body {
 .etapa-area-linha:last-child { border-bottom: none; }
 .etapa-area-nome { color: var(--text-primary); }
 .etapa-area-chk input[type="checkbox"] { width: 17px; height: 17px; accent-color: #C00000; cursor: pointer; }
+
+/* Marcar/desmarcar todos os itens de uma área de uma vez */
+.etapas-area-acoes {
+  display: flex; gap: 8px; padding: 8px 0;
+  border-bottom: 1px solid var(--border-row);
+}
+.btn-marcar-todos, .btn-desmarcar-todos {
+  background: none; border: 1px solid var(--border-default);
+  color: var(--text-secondary); font-size: .72rem; font-weight: 700;
+  padding: 4px 12px; border-radius: 16px; cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn-marcar-todos:hover { background: var(--ok-bg); color: var(--ok-tx); border-color: var(--ok-tx); }
+.btn-desmarcar-todos:hover { background: var(--pend-bg); color: var(--pend-tx); border-color: var(--pend-tx); }
 
 /* ── Grids de caixas informativas ── */
 .linha-boxes { display: grid; gap: 14px; margin-bottom: 22px; }

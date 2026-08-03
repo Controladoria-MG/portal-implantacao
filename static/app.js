@@ -114,20 +114,56 @@ function donut(pct, id) {
 
 // ── Checkbox de etapa ─────────────────────────────────────────
 function chk(grupoId, etapa, area) {
-  const marcado = etapa[area] ? 'checked' : '';
+  const marcado = etapa.concluido ? 'checked' : '';
   return `<input type="checkbox" ${marcado}
-            onchange="onToggleEtapa('${grupoId}', '${etapa.id}', '${area}', this.checked)" />`;
+            onchange="onToggleEtapa('${grupoId}', '${etapa.id}', '${area}', this.checked, this)" />`;
 }
 
 // ── Checklist de etapas de uma única área (dentro do card) ───
+// Cada área tem sua própria lista de itens (grupo.etapasPorArea[area]) —
+// Contábil/Fiscal/Paralegal/DP têm checklists diferentes entre si.
 function secaoEtapasArea(grupo, area) {
-  const linhas = grupo.etapas.map(et => `
+  const itens = (grupo.etapasPorArea && grupo.etapasPorArea[area]) || [];
+  if (!itens.length) {
+    return '<div class="etapas-area-lista"><div class="vazio">Checklist ainda não definido.</div></div>';
+  }
+  const linhas = itens.map(et => `
     <div class="etapa-area-linha">
       <span class="etapa-area-nome">${escapar(et.nome)}</span>
       <span class="etapa-area-chk">${chk(grupo.id, et, area)}</span>
     </div>
   `).join('');
   return `<div class="etapas-area-lista">${linhas}</div>`;
+}
+
+// ── Botões "marcar todos" / "desmarcar todos" de uma área ───
+function botoesMarcarTodos(grupoId, area) {
+  return `
+    <div class="etapas-area-acoes">
+      <button type="button" class="btn-marcar-todos" onclick="marcarTodos('${grupoId}', '${area}', true)">Marcar todos</button>
+      <button type="button" class="btn-desmarcar-todos" onclick="marcarTodos('${grupoId}', '${area}', false)">Desmarcar todos</button>
+    </div>
+  `;
+}
+
+// Conteúdo completo do detalhe de uma área: botões + lista de checkboxes.
+// Fica junto numa função só porque marcarTodos precisa re-renderizar os
+// dois de uma vez (o clique é em massa, não passa pelo onchange de cada
+// checkbox individual).
+function conteudoDetalheDepto(grupo, area) {
+  const itens = (grupo.etapasPorArea && grupo.etapasPorArea[area]) || [];
+  if (!itens.length) {
+    return secaoEtapasArea(grupo, area);
+  }
+  return botoesMarcarTodos(grupo.id, area) + secaoEtapasArea(grupo, area);
+}
+
+// ── Título do card Fiscal, conforme o segmento das empresas do grupo ──
+// Os itens do checklist continuam os mesmos (variam só por regime); isso
+// é só o rótulo do card, pra organizar visualmente Indústria x Varejo.
+function tituloFiscal(grupo) {
+  const segmento = (grupo.empresas[0] && grupo.empresas[0].segmento) || '';
+  return /varejo/i.test(segmento) ? 'Fiscal Varejo' : 'Fiscal Indústria';
 }
 
 // ── Card de implantação por departamento (Contábil/Fiscal/DP/Paralegal) ──
@@ -146,10 +182,10 @@ function cardDepto(grupo, titulo, area, dataIso, pct) {
             ${valorData}
           </div>
         </div>
-        <div class="dica-clique">Clique para ver mais detalhes</div>
+        <div class="dica-clique" id="dica-${area}">Clique para ver mais detalhes</div>
       </div>
       <div class="card-depto-detalhe hidden" id="detalhe-${area}">
-        ${secaoEtapasArea(grupo, area)}
+        ${conteudoDetalheDepto(grupo, area)}
       </div>
     </div>
   `;
@@ -248,9 +284,10 @@ function renderDetalhe(grupo) {
 
       <div class="grid-deptos">
         ${cardDepto(grupo, 'Implantação Contábil', 'ctb', imp.ctb, prog.ctb || 0)}
-        ${cardDepto(grupo, 'Implantação Fiscal', 'ef', imp.ef, prog.ef || 0)}
+        ${cardDepto(grupo, tituloFiscal(grupo), 'ef', imp.ef, prog.ef || 0)}
         ${cardDepto(grupo, 'Implantação DP', 'dp', imp.dp, prog.dp || 0)}
         ${cardDepto(grupo, 'Implantação Paralegal', 'paralegal', imp.paralegal, prog.paralegal || 0)}
+        ${cardDepto(grupo, 'Gerência de Contas', 'gerencia', imp.gerencia, prog.gerencia || 0)}
       </div>
 
       <div class="linha-boxes linha-3">
@@ -286,26 +323,79 @@ function voltarParaLista() {
 
 function toggleDepto(area) {
   const det = document.getElementById(`detalhe-${area}`);
-  if (det) det.classList.toggle('hidden');
+  if (!det) return;
+  const aberto = det.classList.toggle('hidden') === false; // toggle retorna o novo estado da classe 'hidden'
+  const dica = document.getElementById(`dica-${area}`);
+  if (dica) dica.textContent = aberto ? 'Clique para ver menos detalhes' : 'Clique para ver mais detalhes';
 }
 
-async function onToggleEtapa(grupoId, etapaId, area, valor) {
+// Mesmo cálculo do backend (ver calcular_progresso em server.py), só que
+// no navegador — permite atualizar a rosquinha na hora do clique, sem
+// esperar a ida e volta até o Postgres no Render.
+function calcularProgressoLocal(porArea) {
+  const resultado = { geral: 0, dp: 0, ef: 0, ctb: 0, paralegal: 0, gerencia: 0 };
+  let totalGeral = 0;
+  let feitosGeral = 0;
+  ['dp', 'ef', 'ctb', 'paralegal', 'gerencia'].forEach(area => {
+    const itens = (porArea && porArea[area]) || [];
+    const total = itens.length;
+    const feitos = itens.filter(i => i.concluido).length;
+    resultado[area] = total ? Math.round((feitos / total) * 100) : 0;
+    totalGeral += total;
+    feitosGeral += feitos;
+  });
+  resultado.geral = totalGeral ? Math.round((feitosGeral / totalGeral) * 100) : 0;
+  return resultado;
+}
+
+async function onToggleEtapa(grupoId, etapaId, area, valor, checkboxEl) {
+  // etapaId chega como string (veio de um atributo HTML) — os itens em
+  // etapasPorArea têm id numérico (vem do Postgres), então o find abaixo
+  // precisa comparar como número, senão nunca acha o item.
+  const etapaIdNum = Number(etapaId);
+  const itens = (grupoAtual.etapasPorArea && grupoAtual.etapasPorArea[area]) || [];
+  const etapa = itens.find(e => e.id === etapaIdNum);
+  const valorAnterior = etapa ? etapa.concluido : null;
+
+  // Atualização otimista: muda a rosquinha na hora, antes da resposta do servidor.
+  if (etapa) etapa.concluido = valor;
+  atualizarProgresso(calcularProgressoLocal(grupoAtual.etapasPorArea));
+
   try {
-    const resp = await API.marcarEtapa(grupoId, etapaId, area, valor);
-    // atualiza o estado local e os gráficos de rosca
-    const etapa = grupoAtual.etapas.find(e => e.id === etapaId);
-    if (etapa) etapa[area] = valor;
-    atualizarProgresso(resp.progresso);
+    await API.marcarEtapa(grupoId, etapaIdNum, area, valor);
+    // Não usa o "progresso" que volta na resposta pra atualizar a tela: se o
+    // usuário clicou em mais de um item rápido, essa resposta pode ser de um
+    // clique anterior e chegar depois de outra mais recente, sobrescrevendo
+    // o valor já certo com um desatualizado (o "pisca" reportado). O estado
+    // local já soma todos os cliques feitos até agora, então ele já é a
+    // fonte da verdade — só precisamos saber aqui se deu erro ou não.
   } catch (e) {
+    // desfaz o clique (estado local + o próprio checkbox) em caso de erro
+    if (etapa) etapa.concluido = valorAnterior;
+    if (checkboxEl) checkboxEl.checked = valorAnterior;
+    atualizarProgresso(calcularProgressoLocal(grupoAtual.etapasPorArea));
     alert(e.message);
-    // desfaz visualmente em caso de erro
-    carregarDetalheAtual();
   }
+}
+
+// Marca/desmarca todos os itens de uma área de uma vez. Reaproveita
+// onToggleEtapa pra cada item (mesma persistência/otimismo já testados);
+// o estado local já fica certo de forma síncrona, então já dá pra
+// re-renderizar a lista de checkboxes na sequência sem esperar a rede.
+function marcarTodos(grupoId, area, valor) {
+  const itens = (grupoAtual.etapasPorArea && grupoAtual.etapasPorArea[area]) || [];
+  itens.forEach(etapa => {
+    if (etapa.concluido !== valor) {
+      onToggleEtapa(grupoId, String(etapa.id), area, valor, null);
+    }
+  });
+  const det = document.getElementById(`detalhe-${area}`);
+  if (det) det.innerHTML = conteudoDetalheDepto(grupoAtual, area);
 }
 
 function atualizarProgresso(prog) {
   grupoAtual.progresso = prog;
-  ['dp', 'ef', 'ctb', 'paralegal'].forEach(area => {
+  ['dp', 'ef', 'ctb', 'paralegal', 'gerencia'].forEach(area => {
     const el = document.getElementById(`donut-${area}`);
     if (!el) return;
     el.style.setProperty('--pct', prog[area]);
