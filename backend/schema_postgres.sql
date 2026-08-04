@@ -18,14 +18,17 @@
 -- ============================================================
 
 -- ── Catálogo dos itens de checklist (fixo, por departamento) ──
--- Um item pode ser específico de um regime tributário (hoje só a
--- Escrita Fiscal varia: Lucro Real/Presumido x Simples Nacional).
+-- Um item pode ser específico de um regime (hoje só a Escrita Fiscal
+-- varia): 'lucro_real_presumido' e 'simples_nacional' são as duas
+-- variantes de Fiscal Varejo (conforme o regime tributário do
+-- cliente); 'industria' é o checklist único de Fiscal Indústria
+-- (não se subdivide por regime tributário).
 -- `regime = NULL` = item vale pra qualquer regime (caso de todos os
 -- itens do Contábil, e futuramente de DP/Paralegal).
 CREATE TABLE IF NOT EXISTS checklist_itens (
     id            SERIAL PRIMARY KEY,
     departamento  TEXT NOT NULL CHECK (departamento IN ('ctb', 'ef', 'dp', 'paralegal', 'gerencia')),
-    regime        TEXT CHECK (regime IN ('lucro_real_presumido', 'simples_nacional')),
+    regime        TEXT CHECK (regime IN ('lucro_real_presumido', 'simples_nacional', 'industria')),
     texto         TEXT NOT NULL,
     ordem         INTEGER NOT NULL,
     ativo         BOOLEAN NOT NULL DEFAULT TRUE
@@ -35,12 +38,15 @@ CREATE INDEX IF NOT EXISTS idx_checklist_itens_depto ON checklist_itens (departa
 
 -- ── Estado de implantação por grupo ────────────────────────────
 -- `regime_ef` decide qual variante do checklist de Escrita Fiscal
--- esse grupo usa. Se o grupo tiver mais de uma empresa com regimes
--- diferentes, hoje tratamos um regime só por grupo — revisar se
--- isso mudar.
+-- esse grupo usa: 'lucro_real_presumido'/'simples_nacional' para
+-- grupos Fiscal Varejo (conforme regime tributário), ou 'industria'
+-- para grupos Fiscal Indústria (segmento da empresa = Indústria,
+-- checklist único, não depende do regime tributário). Se o grupo
+-- tiver mais de uma empresa com regimes diferentes, hoje tratamos
+-- um regime só por grupo — revisar se isso mudar.
 CREATE TABLE IF NOT EXISTS grupos_implantacao (
     grupo_id      TEXT PRIMARY KEY,   -- mesma chave usada na planilha Excel
-    regime_ef     TEXT CHECK (regime_ef IN ('lucro_real_presumido', 'simples_nacional')),
+    regime_ef     TEXT CHECK (regime_ef IN ('lucro_real_presumido', 'simples_nacional', 'industria')),
     observacoes   TEXT NOT NULL DEFAULT '',
     criado_em     TIMESTAMPTZ NOT NULL DEFAULT now(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -108,6 +114,23 @@ INSERT INTO checklist_itens (departamento, regime, texto, ordem) VALUES
 ('ef', 'simples_nacional', 'Aplicação de modelo no MG Controle', 6),
 ('ef', 'simples_nacional', 'Verificar acessos à prefeitura (IM, LOGIN e SENHA)', 7);
 
+-- Escrita Fiscal — Fiscal Indústria (checklist único, não varia por regime)
+INSERT INTO checklist_itens (departamento, regime, texto, ordem) VALUES
+('ef', 'industria', 'Cadastro SCI WEB', 1),
+('ef', 'industria', 'Validação TAG', 2),
+('ef', 'industria', 'Validação de senhas MG Controle', 3),
+('ef', 'industria', 'Validação Extrato Simples Nacional', 4),
+('ef', 'industria', 'Validação Sped Fiscal', 5),
+('ef', 'industria', 'Validação Sped Contribuição', 6),
+('ef', 'industria', 'Papel de Trabalho', 7),
+('ef', 'industria', 'Cadastro de produto', 8),
+('ef', 'industria', 'Aplicação de modelo', 9),
+('ef', 'industria', 'Validação do 1º mês', 10),
+('ef', 'industria', 'Validação do 2º mês', 11),
+('ef', 'industria', 'Validação do 3º mês', 12),
+('ef', 'industria', 'Validação de obrigações acessórias atípicas', 13),
+('ef', 'industria', 'Parametrização SCI', 14);
+
 -- Paralegal (regime NULL = aplica a qualquer cliente)
 INSERT INTO checklist_itens (departamento, regime, texto, ordem) VALUES
 ('paralegal', NULL, 'Aguardar o SAC informar os dados de contato do antigo contador', 1),
@@ -142,7 +165,8 @@ INSERT INTO checklist_itens (departamento, regime, texto, ordem) VALUES
 -- Gerência de Contas (regime NULL = aplica a qualquer cliente)
 INSERT INTO checklist_itens (departamento, regime, texto, ordem) VALUES
 ('gerencia', NULL, 'Certificados', 1),
-('gerencia', NULL, 'Procurações', 2);
+('gerencia', NULL, 'Procurações', 2),
+('gerencia', NULL, 'Gerar senha Drive MG', 3);
 
 -- ============================================================
 -- Consultas de referência (não são views, só documentação de como

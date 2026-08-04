@@ -105,7 +105,7 @@ body {
 .busca-input:focus { border-color: #C00000; box-shadow: 0 0 0 3px rgba(192,0,0,.12); }
 
 .lista-grupos {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 14px;
 }
 .card-grupo {
@@ -160,7 +160,7 @@ body {
 }
 .card-data-col {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 0 8px; text-align: center;
+  padding: 0 4px; text-align: center; min-width: 0;
   border-left: 1px solid var(--border-default);
 }
 .card-data-col:first-child { border-left: none; }
@@ -168,8 +168,13 @@ body {
   font-size: .74rem; font-weight: 800; color: var(--text-primary);
   text-transform: uppercase; letter-spacing: .5px;
 }
-.card-data-col-valor { font-size: .76rem; font-weight: 500; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.card-data-col-valor--pendente { color: var(--accent); font-style: normal; font-weight: 800; font-size: .76rem; }
+.card-data-col-valor {
+  font-size: .72rem; font-weight: 500; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.card-data-col-valor--pendente { color: var(--accent); font-style: normal; font-weight: 800; font-size: .72rem; }
+.card-data-col-valor--feito { color: var(--ok-tx); font-weight: 700; }
+.card-data-col-rotulo--feito { color: var(--ok-tx); }
 .lista-vazia { text-align: center; padding: 40px; color: var(--text-muted); font-size: .9rem; }
 
 /* ══════════════ TELA 2 ══════════════ */
@@ -208,6 +213,7 @@ body {
 .depto-data-rotulo { font-size: .7rem; color: var(--text-primary); font-weight: 600; }
 .depto-data-valor { font-size: .95rem; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .depto-data-valor--pendente { color: var(--text-light); font-style: italic; font-size: .85rem; }
+.depto-data-valor--feito { color: var(--ok-tx); }
 
 /* Gráfico de rosca */
 .donut {

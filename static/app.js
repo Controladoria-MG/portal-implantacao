@@ -1,6 +1,7 @@
 // ── Estado em memória ────────────────────────────────────────
 let GRUPOS_LISTA = [];      // lista enxuta da Tela 1
 let grupoAtual = null;      // detalhe carregado na Tela 2
+const CACHE_GRUPOS = {};    // grupoId -> detalhe já carregado (evita refetch ao reabrir o mesmo grupo)
 
 // ── Formatação ───────────────────────────────────────────────
 function formatarData(iso) {
@@ -30,12 +31,16 @@ function escapar(txt) {
 // ══════════════════════════════════════════════════════════════
 //  TELA 1 — Lista
 // ══════════════════════════════════════════════════════════════
-function colunaDataCard(sigla, iso) {
+function colunaDataCard(sigla, iso, realizada) {
   const pendente = !iso;
+  const feito = !!(iso && realizada);
+  const valorClasse = feito ? 'card-data-col-valor card-data-col-valor--feito'
+    : pendente ? 'card-data-col-valor card-data-col-valor--pendente' : 'card-data-col-valor';
   const valor = iso
-    ? `<span class="card-data-col-valor">${formatarData(iso)}</span>`
-    : `<span class="card-data-col-valor card-data-col-valor--pendente">A agendar</span>`;
-  const rotuloClasse = pendente ? 'card-data-col-rotulo card-data-col-rotulo--pendente' : 'card-data-col-rotulo';
+    ? `<span class="${valorClasse}">${formatarData(iso)}</span>`
+    : `<span class="${valorClasse}">A agendar</span>`;
+  const rotuloClasse = feito ? 'card-data-col-rotulo card-data-col-rotulo--feito'
+    : pendente ? 'card-data-col-rotulo card-data-col-rotulo--pendente' : 'card-data-col-rotulo';
   return `<div class="card-data-col"><span class="${rotuloClasse}">${sigla}</span>${valor}</div>`;
 }
 
@@ -72,9 +77,9 @@ function renderLista(lista) {
           ${g.vigencia ? `<span class="card-grupo-vigencia">Vigência <span>${formatarVigenciaCard(g.vigencia)}</span></span>` : ''}
         </div>
         <div class="card-grupo-datas">
-          ${colunaDataCard('DP', imp.dp)}
-          ${colunaDataCard('EF', imp.ef)}
-          ${colunaDataCard('CTB', imp.ctb)}
+          ${colunaDataCard('DP', imp.dp, g.implantacaoRealizada)}
+          ${colunaDataCard('EF', imp.ef, g.implantacaoRealizada)}
+          ${colunaDataCard('CTB', imp.ctb, g.implantacaoRealizada)}
         </div>
         <div class="dica-clique">Clique para ver mais detalhes</div>
       </div>
@@ -168,8 +173,9 @@ function tituloFiscal(grupo) {
 
 // ── Card de implantação por departamento (Contábil/Fiscal/DP/Paralegal) ──
 function cardDepto(grupo, titulo, area, dataIso, pct) {
+  const feito = !!(dataIso && grupo.implantacaoRealizada);
   const valorData = dataIso
-    ? `<span class="depto-data-valor">${formatarData(dataIso)}</span>`
+    ? `<span class="depto-data-valor${feito ? ' depto-data-valor--feito' : ''}">${formatarData(dataIso)}</span>`
     : `<span class="depto-data-valor depto-data-valor--pendente">Pendente</span>`;
   return `
     <div class="card-depto">
@@ -305,7 +311,11 @@ function renderDetalhe(grupo) {
 // ── Ações ────────────────────────────────────────────────────
 async function abrirGrupo(id) {
   try {
-    grupoAtual = await API.obterGrupo(id);
+    // Reabrir um grupo já visitado nessa sessão não precisa de rede: reusa
+    // o mesmo objeto (por referência), então marcações/observações feitas
+    // antes continuam refletidas.
+    grupoAtual = CACHE_GRUPOS[id] || await API.obterGrupo(id);
+    CACHE_GRUPOS[id] = grupoAtual;
     document.getElementById('grupo-detalhe').innerHTML = renderDetalhe(grupoAtual);
     document.getElementById('tela-1').classList.add('hidden');
     document.getElementById('tela-2').classList.remove('hidden');
@@ -318,7 +328,18 @@ async function abrirGrupo(id) {
 function voltarParaLista() {
   document.getElementById('tela-2').classList.add('hidden');
   document.getElementById('tela-1').classList.remove('hidden');
-  carregarLista(); // atualiza o % na lista ao voltar
+
+  // Atualização otimista: o progresso do grupo editado já foi calculado
+  // localmente na Tela 2 (calcularProgressoLocal), então atualiza o card
+  // na hora, sem esperar a ida e volta até o Postgres no Render.
+  if (grupoAtual) {
+    const card = GRUPOS_LISTA.find(g => g.id === grupoAtual.id);
+    if (card && grupoAtual.progresso) card.progresso = grupoAtual.progresso.geral;
+  }
+  filtrarLista();
+
+  // Reconcilia com o servidor em segundo plano, sem travar a troca de tela.
+  carregarLista();
 }
 
 function toggleDepto(area) {

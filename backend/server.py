@@ -3,8 +3,12 @@ Portal de Implantação — backend.
 
 - Serve o site estático (index.html, static/, data/imagens).
 - Identidade dos grupos (nome, contatos, equipe, dados contratuais,
-  empresas, datas de implantação) vem de data/db.json — hoje é a base de
-  teste; depois vira uma planilha Excel, sempre só leitura pelo portal.
+  empresas, datas de implantação e se a implantação foi realizada) vem
+  da planilha data/base/base 1.xlsx (aba "Clientes"), só leitura pelo
+  portal — quem mantém essa informação em dia é quem edita a planilha.
+  A coluna "GrupoID" é a chave que liga uma linha (empresa) da planilha
+  ao grupo_id usado no Postgres; várias linhas com o mesmo GrupoID
+  formam um grupo com várias empresas.
 - Checklists (catálogo de itens + marcações) e observações — tudo que o
   portal de fato escreve — ficam no Postgres (variável DATABASE_URL).
   Schema em backend/schema_postgres.sql.
@@ -16,11 +20,14 @@ Rodar localmente:
     abrir http://localhost:5000
 """
 
-import json
 import os
+import re
+from collections import OrderedDict
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
+import openpyxl
 import psycopg2
 import psycopg2.pool
 from psycopg2.extras import RealDictCursor
@@ -28,7 +35,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 # ── Caminhos e config ────────────────────────────────────────
 RAIZ = Path(__file__).resolve().parent.parent
-ARQUIVO_DB = RAIZ / "data" / "db.json"
+ARQUIVO_EXCEL = RAIZ / "data" / "base" / "base 1.xlsx"
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
@@ -66,10 +73,98 @@ def get_conn():
         _obter_pool().putconn(conn)
 
 
-# ── Identidade dos grupos (JSON hoje, planilha Excel depois) ──
+# ── Identidade dos grupos (planilha Excel, só leitura) ─────────
+def _texto(valor):
+    """Limpa artefatos de exportação (';' e '/' sobrando no fim) e espaços."""
+    if valor is None:
+        return None
+    s = re.sub(r"\s*/\s*$", "", str(valor).strip()).rstrip(";").strip()
+    return s or None
+
+
+def _data_iso(valor):
+    if isinstance(valor, datetime):
+        return valor.strftime("%Y-%m-%d")
+    return _texto(valor)
+
+
+_MAPA_ACENTOS = str.maketrans("áàãâéêíóõôúç", "aaaaeeiooouc")
+
+
+def _slugificar(nome):
+    """Deriva um grupo_id a partir do nome do grupo (ex: 'Loja Sul' ->
+    'loja-sul'). Usado quando a planilha não preenche a coluna GrupoID —
+    assim quem cadastra um grupo novo não precisa digitar o id na mão."""
+    s = nome.strip().lower().translate(_MAPA_ACENTOS)
+    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+    return s
+
+
 def carregar_identidade():
-    with open(ARQUIVO_DB, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Lê a planilha e monta a mesma estrutura {"grupos": [...]} que a
+    Tela 1/2 esperam — várias linhas (empresas) com o mesmo GrupoID
+    viram um único grupo com várias "empresas". Se a coluna GrupoID
+    estiver em branco numa linha, o id é derivado do nome do grupo."""
+    wb = openpyxl.load_workbook(ARQUIVO_EXCEL, data_only=True)
+    ws = wb["Clientes"]
+    cabecalho = [c.value for c in ws[1]]
+
+    grupos = OrderedDict()
+    for linha in ws.iter_rows(min_row=2, values_only=True):
+        d = dict(zip(cabecalho, linha))
+        nome_grupo = _texto(d.get("Grupo"))
+        if not nome_grupo:
+            continue
+        grupo_id = _texto(d.get("GrupoID")) or _slugificar(nome_grupo)
+
+        if grupo_id not in grupos:
+            contrato_mg = d.get("ContratoMG")
+            vigencia = contrato_mg.strftime("%Y-%m") if isinstance(contrato_mg, datetime) else None
+            realizada = str(d.get("Implantação Realizada") or "").strip().lower() in ("sim", "true", "1", "x")
+            grupos[grupo_id] = {
+                "id": grupo_id,
+                "grupo": _texto(d.get("Grupo")),
+                "implantacaoRealizada": realizada,
+                "implantacao": {
+                    "dp": _data_iso(d.get("Implantação DP")),
+                    "ctb": _data_iso(d.get("Implantação CTB")),
+                    "ef": _data_iso(d.get("Implantação EF")),
+                    "paralegal": _data_iso(d.get("Implantação Paralegal")),
+                },
+                "contatos": [],
+                "equipe": {
+                    "gerente": _texto(d.get("Gerente")),
+                    "secretaria": _texto(d.get("Secretaria")),
+                    "master": _texto(d.get("Master")),
+                },
+                "contratuais": {
+                    "vigenciaContrato": vigencia,
+                    "regimeContratual": _texto(d.get("Regime")),
+                },
+                "empresas": [],
+            }
+
+        grupo = grupos[grupo_id]
+        socios = [s.strip() for s in (d.get("Socio") or "").split(";") if s.strip()]
+        for nome_socio in socios:
+            if not any(c["nome"] == nome_socio for c in grupo["contatos"]):
+                grupo["contatos"].append({"nome": nome_socio, "cargo": "Sócio", "email": None, "telefone": None})
+
+        grupo["empresas"].append({
+            "id": _texto(d.get("ID")),
+            "razaoSocial": _texto(d.get("RazaoSocial")),
+            "cnpj": None,
+            "regime": _texto(d.get("Regime")),
+            "segmento": _texto(d.get("Segmento")),
+            "atividadeEconomica": None,
+            "endereco": _texto(d.get("Endereco")),
+            "email": _texto(d.get("Email")),
+            "telefone": _texto(d.get("Telefone")),
+            "socios": socios,
+            "impostos": [],
+        })
+
+    return {"grupos": list(grupos.values())}
 
 
 def encontrar_identidade(dados, grupo_id):
@@ -105,6 +200,7 @@ def carregar_checklist(grupo_id):
             "id": r["id"],
             "nome": r["texto"],
             "concluido": r["concluido"],
+            
         })
 
     return {
@@ -134,6 +230,58 @@ def carregar_progresso_geral_todos():
     }
 
 
+def _regime_ef_padrao(segmento, regime_texto):
+    """Decide automaticamente qual variante do checklist de Escrita Fiscal
+    um grupo novo deve receber, a partir do que já vem na planilha:
+    segmento Indústria sempre cai no checklist único de Fiscal Indústria;
+    os demais (Varejo) seguem o regime tributário (texto tipo 'Federal - SN'
+    vira Simples Nacional, o resto vira Lucro Real/Presumido)."""
+    if "industria" in (segmento or "").lower():
+        return "industria"
+    if re.search(r"\bsn\b|simples", (regime_texto or "").lower()):
+        return "simples_nacional"
+    return "lucro_real_presumido"
+
+
+def provisionar_grupos_novos(grupos):
+    """Cria em grupos_implantacao (+ o checklist inicial em
+    checklist_marcacoes) qualquer grupo que já exista na planilha mas
+    ainda não tenha aparecido no Postgres — é assim que um grupo novo na
+    planilha passa a ter checklist no portal sem precisar de SQL manual."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT grupo_id FROM grupos_implantacao")
+            existentes = {r["grupo_id"] for r in cur.fetchall()}
+            novos = [g for g in grupos if g["id"] not in existentes]
+            if not novos:
+                return
+
+            cur.execute("SELECT id, departamento, regime FROM checklist_itens WHERE ativo")
+            itens = cur.fetchall()
+
+            for g in novos:
+                empresas = g.get("empresas") or []
+                segmento = empresas[0]["segmento"] if empresas else None
+                regime_texto = empresas[0]["regime"] if empresas else None
+                regime_ef = _regime_ef_padrao(segmento, regime_texto)
+
+                cur.execute(
+                    "INSERT INTO grupos_implantacao (grupo_id, regime_ef) VALUES (%s, %s) ON CONFLICT (grupo_id) DO NOTHING",
+                    (g["id"], regime_ef),
+                )
+                for item in itens:
+                    # item de EF só entra se for da variante certa pra esse grupo;
+                    # itens dos outros departamentos (regime = NULL) entram sempre.
+                    if item["departamento"] == "ef" and item["regime"] != regime_ef:
+                        continue
+                    cur.execute("""
+                        INSERT INTO checklist_marcacoes (grupo_id, checklist_item_id, concluido)
+                        VALUES (%s, %s, false)
+                        ON CONFLICT (grupo_id, checklist_item_id) DO NOTHING
+                    """, (g["id"], item["id"]))
+            conn.commit()
+
+
 def calcular_progresso(por_area):
     """% de conclusão geral e por área, a partir de etapasPorArea."""
     resultado = {"geral": 0, "dp": 0, "ef": 0, "ctb": 0, "paralegal": 0, "gerencia": 0}
@@ -157,12 +305,14 @@ def calcular_progresso(por_area):
 def listar_grupos():
     """Lista enxuta para a Tela 1 (nome, datas por área e progresso)."""
     dados = carregar_identidade()
+    provisionar_grupos_novos(dados["grupos"])
     progresso_por_grupo = carregar_progresso_geral_todos()
     lista = [
         {
             "id": g["id"],
             "grupo": g["grupo"],
             "implantacao": g.get("implantacao", {}),
+            "implantacaoRealizada": g.get("implantacaoRealizada", False),
             "vigencia": g.get("contratuais", {}).get("vigenciaContrato"),
             "progresso": progresso_por_grupo.get(g["id"], 0),
         }
@@ -180,6 +330,7 @@ def obter_grupo(grupo_id):
     if not grupo:
         return jsonify({"erro": "Grupo não encontrado"}), 404
 
+    provisionar_grupos_novos([grupo])
     checklist = carregar_checklist(grupo_id)
     if not checklist:
         return jsonify({"erro": "Grupo sem checklist cadastrado no Postgres"}), 404
@@ -256,8 +407,9 @@ def index():
 
 @app.get("/<path:caminho>")
 def estaticos(caminho):
-    # Serve static/, data/imagens, etc. Bloqueia acesso ao db.json.
-    if caminho.replace("\\", "/").endswith("data/db.json"):
+    # Serve static/, data/imagens, etc. Bloqueia acesso direto à planilha
+    # (tem e-mail/telefone de cliente — não pode ser baixada pela URL).
+    if caminho.replace("\\", "/").startswith("data/base/"):
         return jsonify({"erro": "Acesso negado"}), 403
     return send_from_directory(RAIZ, caminho)
 
