@@ -19,7 +19,7 @@ Pasta local: Portal-implantacao-tmp/
   - static/styles.css     Estilo (tema claro/escuro)
   - backend/server.py     Servidor Flask
   - backend/schema_postgres.sql   Schema do banco (tabelas + checklist inicial)
-  - data/base/base 1.xlsx Planilha de origem (identidade dos grupos)
+  - data/base/base implantação.xlsx Planilha de origem (identidade dos grupos)
   - data/imagens/logo.png
 
 ===========================================================
@@ -28,7 +28,7 @@ Pasta local: Portal-implantacao-tmp/
 
 O portal combina duas bases diferentes, cada uma com um papel:
 
-  a) PLANILHA EXCEL (data/base/base 1.xlsx, aba "Clientes") — SÓ LEITURA.
+  a) PLANILHA EXCEL (data/base/base implantação.xlsx, aba "Clientes") — SÓ LEITURA.
      É de onde vem a identidade dos grupos: nome do grupo, empresas,
      sócios, gerente/secretária/master, dados contratuais (vigência,
      regime), e as datas de implantação por área + se cada uma foi
@@ -100,7 +100,7 @@ O Postgres já está hospedado no Render (mesmo padrão dos outros
 portais da equipe). O front nunca acessa o Postgres direto — sempre
 via API do Flask (/api/grupos, /api/grupos/<id>).
 
-Atenção: a planilha (data/base/base 1.xlsx) precisa estar FECHADA no
+Atenção: a planilha (data/base/base implantação.xlsx) precisa estar FECHADA no
 Excel enquanto o servidor roda — com o arquivo aberto, o Windows
 bloqueia a leitura e a Tela 1 dá erro 500.
 
@@ -130,6 +130,14 @@ Faxina: removido data/db.json (resquício de uma versão bem anterior
 do projeto, antes da migração pra Excel+Postgres — não era mais lido
 por nenhum .py) e um comentário órfão no .gitignore que ainda falava
 dele. Adicionado *.log ao .gitignore.
+
+Também: quando "Realizada" é verdadeiro, a data aparece numa pílula
+(fundo verde + borda + cantos arredondados) em vez de só texto verde
+(Tela 1 e Tela 2). Paralegal e Gerência de Contas confirmados como
+áreas sem data de implantação — o card delas nem mostra mais a linha
+"Data de implantação", só o checklist. Planilha renomeada de
+"base 1.xlsx" pra "base implantação.xlsx" (data/base/), com o caminho
+atualizado em backend/server.py (ARQUIVO_EXCEL).
 
 ===========================================================
 7. PENDÊNCIAS / PONTOS DE ATENÇÃO

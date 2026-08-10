@@ -4,7 +4,7 @@ Portal de Implantação — backend.
 - Serve o site estático (index.html, static/, data/imagens).
 - Identidade dos grupos (nome, contatos, equipe, dados contratuais,
   empresas, datas de implantação e se a implantação foi realizada) vem
-  da planilha data/base/base 1.xlsx (aba "Clientes"), só leitura pelo
+  da planilha data/base/base implantação.xlsx (aba "Clientes"), só leitura pelo
   portal — quem mantém essa informação em dia é quem edita a planilha.
   A coluna "GrupoID" é a chave que liga uma linha (empresa) da planilha
   ao grupo_id usado no Postgres; várias linhas com o mesmo GrupoID
@@ -35,7 +35,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 # ── Caminhos e config ────────────────────────────────────────
 RAIZ = Path(__file__).resolve().parent.parent
-ARQUIVO_EXCEL = RAIZ / "data" / "base" / "base 1.xlsx"
+ARQUIVO_EXCEL = RAIZ / "data" / "base" / "base implantação.xlsx"
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
