@@ -66,7 +66,9 @@ node_modules/
 *.sqlite
 .DS_Store
 ```
-#### O projeto será postado no GitHub, então siga a estrutura pensando nisso, quanto a consulta entre interface e base de dados, não vamos usar o backend, deixe o a base já setada no código .js
+#### O projeto será postado no GitHub, então siga a estrutura pensando nisso.
+
+#### Atualizado em 2026-08-10: diferente da regra genérica acima, ESTE projeto usa backend sim (`backend/server.py`, Flask). A identidade dos grupos vem da planilha `data/base/base 1.xlsx` (só leitura, nunca escrita pelo portal) e os checklists/observações ficam no Postgres (leitura e escrita). O front consome tudo via API (`/api/grupos`, `/api/grupos/<id>`), não tem dado setado direto no `.js`.
 ---
 
 ## Resumo das Regras

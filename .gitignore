@@ -2,6 +2,7 @@
 .env
 __pycache__/
 *.pyc
+*.log
 venv/
 .venv/
 
@@ -11,7 +12,3 @@ Thumbs.db
 
 # Config local do Claude
 .claude/settings.local.json
-
-# Observação: data/db.json É versionado de propósito — é a base de teste
-# (dados fictícios + estado inicial das etapas). Ao migrar para banco real
-# no Render, passe a ignorá-lo.

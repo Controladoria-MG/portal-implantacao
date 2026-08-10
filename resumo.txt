@@ -1,0 +1,143 @@
+PORTAL DE IMPLANTAÇÃO — RESUMO DO PROJETO
+Atualizado em: 10/08/2026
+
+===========================================================
+1. O QUE É
+===========================================================
+
+Portal pra acompanhar a implantação (onboarding) de clientes/grupos
+novos na MG Contabilidade, com um checklist por departamento
+(Contábil, Escrita Fiscal, Departamento Pessoal, Paralegal e
+Gerência de Contas).
+
+Repositório: https://github.com/Controladoria-MG/portal-implantacao
+Pasta local: Portal-implantacao-tmp/
+
+  - index.html            Tela 1 (lista) e Tela 2 (detalhe do grupo)
+  - static/api.js         Chamadas à API
+  - static/app.js         Renderização das duas telas
+  - static/styles.css     Estilo (tema claro/escuro)
+  - backend/server.py     Servidor Flask
+  - backend/schema_postgres.sql   Schema do banco (tabelas + checklist inicial)
+  - data/base/base 1.xlsx Planilha de origem (identidade dos grupos)
+  - data/imagens/logo.png
+
+===========================================================
+2. ARQUITETURA: DUAS FONTES DE DADOS
+===========================================================
+
+O portal combina duas bases diferentes, cada uma com um papel:
+
+  a) PLANILHA EXCEL (data/base/base 1.xlsx, aba "Clientes") — SÓ LEITURA.
+     É de onde vem a identidade dos grupos: nome do grupo, empresas,
+     sócios, gerente/secretária/master, dados contratuais (vigência,
+     regime), e as datas de implantação por área + se cada uma foi
+     realizada. O portal NUNCA escreve nessa planilha — quem mantém
+     ela em dia é quem edita o arquivo direto. O backend relê o
+     arquivo inteiro a cada request (função carregar_identidade()
+     em backend/server.py).
+
+  b) POSTGRES (variável de ambiente DATABASE_URL) — LEITURA E ESCRITA.
+     Guarda só o que o portal de fato edita: o estado de cada item
+     do checklist (marcado/desmarcado) e as observações de cada
+     grupo. Quando um grupo aparece na planilha mas ainda não existe
+     no Postgres, o backend cria o registro dele automaticamente com
+     o checklist zerado (provisionar_grupos_novos()).
+
+As duas bases se conectam pela coluna "GrupoID" da planilha (se
+estiver vazia, o backend gera um id a partir do nome do grupo —
+ex.: "Loja Sul" vira "loja-sul").
+
+===========================================================
+3. COLUNAS QUE A PLANILHA PRECISA TER
+===========================================================
+
+Na aba "Clientes", uma linha por empresa (várias empresas com o
+mesmo GrupoID formam um único grupo):
+
+  ID, RazaoSocial, ContratoMG, Grupo, GrupoID, Gerente, Secretaria,
+  Master, Regime, Endereco, Email, Telefone, Segmento, Socio,
+  Implantação CTB, Implantação CTB - Realizada,
+  Implantação EF, Implantação EF - Realizada,
+  Implantação DP, Implantação DP - Realizada
+
+Cada área (CTB/EF/DP) tem sua PRÓPRIA coluna de data e sua PRÓPRIA
+coluna "- Realizada" (Sim/Não) — uma área pode estar concluída e
+outra não, ao mesmo tempo, pro mesmo grupo.
+
+Paralegal e Gerência de Contas NÃO têm coluna de data/realizada na
+planilha (decisão de 10/08/2026: Paralegal não vai ter data de
+implantação). Os cards dessas duas áreas continuam existindo na
+Tela 2, mas sempre mostram "Pendente" no lugar da data — só o
+checklist delas funciona normalmente.
+
+===========================================================
+4. CHECKLISTS POR DEPARTAMENTO (Postgres)
+===========================================================
+
+Catálogo fixo em checklist_itens (ver backend/schema_postgres.sql):
+
+  - Contábil (ctb): 11 itens, iguais pra qualquer cliente.
+  - Escrita Fiscal (ef): varia por variante, decidida automaticamente
+    a partir do Segmento/Regime da planilha (regime_ef):
+      "lucro_real_presumido" — 17 itens
+      "simples_nacional"     — 7 itens
+      "industria"            — 14 itens (Fiscal Indústria)
+  - Paralegal: 14 itens, iguais pra qualquer cliente.
+  - DP (Departamento Pessoal): 11 itens, iguais pra qualquer cliente.
+  - Gerência de Contas: 3 itens, iguais pra qualquer cliente.
+
+===========================================================
+5. COMO RODAR LOCALMENTE
+===========================================================
+
+    pip install -r requirements.txt
+    set DATABASE_URL=postgresql://usuario:senha@host/banco   (Windows)
+    python backend/server.py
+    abrir http://localhost:5000
+
+O Postgres já está hospedado no Render (mesmo padrão dos outros
+portais da equipe). O front nunca acessa o Postgres direto — sempre
+via API do Flask (/api/grupos, /api/grupos/<id>).
+
+Atenção: a planilha (data/base/base 1.xlsx) precisa estar FECHADA no
+Excel enquanto o servidor roda — com o arquivo aberto, o Windows
+bloqueia a leitura e a Tela 1 dá erro 500.
+
+===========================================================
+6. HISTÓRICO RECENTE
+===========================================================
+
+--- 10/08/2026: datas de implantação por área -------------
+
+O usuário adicionou na planilha as colunas de data + "- Realizada"
+por departamento (ver seção 3). Antes disso, o código já esperava
+esse formato pra CTB/EF/DP, mas ainda tratava "Realizada" como um
+único flag por grupo (compartilhado entre as três áreas) — o que
+não fazia mais sentido com colunas separadas por área.
+
+Ajustado:
+  - backend/server.py: implantacaoRealizada passou de um bool único
+    pra um objeto por área ({"ctb": bool, "ef": bool, "dp": bool}).
+  - static/app.js: Tela 1 (colunaDataCard) e Tela 2 (cardDepto) agora
+    usam o flag da área específica, não mais um único valor pras três.
+  - Corrigido também um erro de digitação na planilha: duas linhas
+    (JL Distribuidora, Hepa Filtros) tinham o texto "Não" digitado
+    nas colunas de DATA em vez de vazio/data — já corrigido pelo
+    usuário direto na planilha.
+
+Faxina: removido data/db.json (resquício de uma versão bem anterior
+do projeto, antes da migração pra Excel+Postgres — não era mais lido
+por nenhum .py) e um comentário órfão no .gitignore que ainda falava
+dele. Adicionado *.log ao .gitignore.
+
+===========================================================
+7. PENDÊNCIAS / PONTOS DE ATENÇÃO
+===========================================================
+
+  - Gerência de Contas nunca tem data de implantação (o backend não
+    lê nenhuma coluna pra essa área) — card sempre "Pendente" na data,
+    só o checklist funciona. Não é bug, é o mesmo caso do Paralegal.
+  - Vale conferir de vez em quando se a planilha não tem outra linha
+    com texto solto (tipo "Não"/"Sim") numa coluna de data por engano
+    — o backend não valida isso, só exibe o que vier.

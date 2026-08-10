@@ -88,6 +88,10 @@ def _data_iso(valor):
     return _texto(valor)
 
 
+def _bool_sim_nao(valor):
+    return str(valor or "").strip().lower() in ("sim", "true", "1", "x")
+
+
 _MAPA_ACENTOS = str.maketrans("áàãâéêíóõôúç", "aaaaeeiooouc")
 
 
@@ -120,11 +124,19 @@ def carregar_identidade():
         if grupo_id not in grupos:
             contrato_mg = d.get("ContratoMG")
             vigencia = contrato_mg.strftime("%Y-%m") if isinstance(contrato_mg, datetime) else None
-            realizada = str(d.get("Implantação Realizada") or "").strip().lower() in ("sim", "true", "1", "x")
             grupos[grupo_id] = {
                 "id": grupo_id,
                 "grupo": _texto(d.get("Grupo")),
-                "implantacaoRealizada": realizada,
+                # "Realizada" agora é uma coluna por área na planilha (não existe
+                # mais uma única "Implantação Realizada") -- cada área tem seu
+                # próprio status porque uma pode estar concluída e outra não.
+                # Paralegal não tem data/realizada na planilha (decisão do
+                # usuário em 2026-08-10) -- fica de fora daqui de propósito.
+                "implantacaoRealizada": {
+                    "ctb": _bool_sim_nao(d.get("Implantação CTB - Realizada")),
+                    "ef": _bool_sim_nao(d.get("Implantação EF - Realizada")),
+                    "dp": _bool_sim_nao(d.get("Implantação DP - Realizada")),
+                },
                 "implantacao": {
                     "dp": _data_iso(d.get("Implantação DP")),
                     "ctb": _data_iso(d.get("Implantação CTB")),
@@ -312,7 +324,7 @@ def listar_grupos():
             "id": g["id"],
             "grupo": g["grupo"],
             "implantacao": g.get("implantacao", {}),
-            "implantacaoRealizada": g.get("implantacaoRealizada", False),
+            "implantacaoRealizada": g.get("implantacaoRealizada", {}),
             "vigencia": g.get("contratuais", {}).get("vigenciaContrato"),
             "progresso": progresso_por_grupo.get(g["id"], 0),
         }

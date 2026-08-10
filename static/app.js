@@ -62,6 +62,7 @@ function renderLista(lista) {
       ? `<span class="alerta-pendente" title="Há datas de implantação pendentes"></span>`
       : '';
     const corProg = corDonut(g.progresso);
+    const realizada = g.implantacaoRealizada || {};
     return `
       <div class="card-grupo" onclick="abrirGrupo('${g.id}')">
         <div class="card-grupo-topo">
@@ -77,9 +78,9 @@ function renderLista(lista) {
           ${g.vigencia ? `<span class="card-grupo-vigencia">Vigência <span>${formatarVigenciaCard(g.vigencia)}</span></span>` : ''}
         </div>
         <div class="card-grupo-datas">
-          ${colunaDataCard('DP', imp.dp, g.implantacaoRealizada)}
-          ${colunaDataCard('EF', imp.ef, g.implantacaoRealizada)}
-          ${colunaDataCard('CTB', imp.ctb, g.implantacaoRealizada)}
+          ${colunaDataCard('DP', imp.dp, realizada.dp)}
+          ${colunaDataCard('EF', imp.ef, realizada.ef)}
+          ${colunaDataCard('CTB', imp.ctb, realizada.ctb)}
         </div>
         <div class="dica-clique">Clique para ver mais detalhes</div>
       </div>
@@ -172,8 +173,15 @@ function tituloFiscal(grupo) {
 }
 
 // ── Card de implantação por departamento (Contábil/Fiscal/DP/Paralegal) ──
+// "Realizada" vem por área (grupo.implantacaoRealizada.ctb/ef/dp). Paralegal
+// e Gerência não têm coluna de data/realizada na planilha (decisão de
+// 10/08/2026: essas duas áreas nunca vão ter data de implantação) -- o card
+// delas nem mostra a linha "Data de implantação", só o donut de progresso.
+const AREAS_SEM_DATA_IMPLANTACAO = ['paralegal', 'gerencia'];
+
 function cardDepto(grupo, titulo, area, dataIso, pct) {
-  const feito = !!(dataIso && grupo.implantacaoRealizada);
+  const temData = !AREAS_SEM_DATA_IMPLANTACAO.includes(area);
+  const feito = !!(dataIso && (grupo.implantacaoRealizada || {})[area]);
   const valorData = dataIso
     ? `<span class="depto-data-valor${feito ? ' depto-data-valor--feito' : ''}">${formatarData(dataIso)}</span>`
     : `<span class="depto-data-valor depto-data-valor--pendente">Pendente</span>`;
@@ -181,12 +189,13 @@ function cardDepto(grupo, titulo, area, dataIso, pct) {
     <div class="card-depto">
       <div class="card-depto-clicavel" onclick="toggleDepto('${area}')">
         <div class="card-depto-titulo">${titulo}</div>
-        <div class="card-depto-corpo">
+        <div class="card-depto-corpo${temData ? '' : ' card-depto-corpo--sem-data'}">
           ${donut(pct, `donut-${area}`)}
+          ${temData ? `
           <div class="card-depto-data">
             <span class="depto-data-rotulo">Data de implantação</span>
             ${valorData}
-          </div>
+          </div>` : ''}
         </div>
         <div class="dica-clique" id="dica-${area}">Clique para ver mais detalhes</div>
       </div>
