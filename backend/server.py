@@ -28,6 +28,7 @@ from datetime import datetime
 from pathlib import Path
 
 import openpyxl
+from openpyxl.utils.datetime import from_excel
 import psycopg2
 import psycopg2.pool
 from psycopg2.extras import RealDictCursor
@@ -82,10 +83,25 @@ def _texto(valor):
     return s or None
 
 
-def _data_iso(valor):
+def _para_datetime_excel(valor):
+    """Converte o valor de uma célula de data em datetime, cobrindo tanto
+    células formatadas como data (openpyxl já devolve datetime) quanto
+    células digitadas sem formato de data aplicado -- nesse caso openpyxl
+    devolve o número de série cru do Excel (ex: 46253) em vez de um
+    datetime, e é isso que convertemos aqui."""
     if isinstance(valor, datetime):
-        return valor.strftime("%Y-%m-%d")
-    return _texto(valor)
+        return valor
+    if isinstance(valor, (int, float)) and valor > 0:
+        try:
+            return from_excel(valor)
+        except (ValueError, OverflowError):
+            return None
+    return None
+
+
+def _data_iso(valor):
+    dt = _para_datetime_excel(valor)
+    return dt.strftime("%Y-%m-%d") if dt else None
 
 
 def _bool_sim_nao(valor):
@@ -122,8 +138,8 @@ def carregar_identidade():
         grupo_id = _texto(d.get("GrupoID")) or _slugificar(nome_grupo)
 
         if grupo_id not in grupos:
-            contrato_mg = d.get("ContratoMG")
-            vigencia = contrato_mg.strftime("%Y-%m") if isinstance(contrato_mg, datetime) else None
+            contrato_mg_dt = _para_datetime_excel(d.get("ContratoMG"))
+            vigencia = contrato_mg_dt.strftime("%Y-%m") if contrato_mg_dt else None
             grupos[grupo_id] = {
                 "id": grupo_id,
                 "grupo": _texto(d.get("Grupo")),
