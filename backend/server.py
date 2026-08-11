@@ -20,6 +20,7 @@ Rodar localmente:
     abrir http://localhost:5000
 """
 
+import html
 import os
 import re
 from collections import OrderedDict
@@ -173,10 +174,23 @@ def carregar_identidade():
             }
 
         grupo = grupos[grupo_id]
-        socios = [s.strip() for s in (d.get("Socio") or "").split(";") if s.strip()]
+        # html.unescape antes de separar: nomes colados de fontes já escapadas
+        # em HTML (ex: "AA&amp;MARTINS") têm um ';' dentro da própria entidade
+        # ("&amp;"), que quebraria o split abaixo no lugar errado.
+        socio_texto = html.unescape(d.get("Socio") or "")
+        socios = [s.strip() for s in socio_texto.split(";") if s.strip()]
+        # A planilha não tem e-mail/telefone por sócio, só por empresa -- usa
+        # o da linha (empresa) em que o sócio apareceu primeiro.
+        email_empresa = _texto(d.get("Email"))
+        telefone_empresa = _texto(d.get("Telefone"))
         for nome_socio in socios:
             if not any(c["nome"] == nome_socio for c in grupo["contatos"]):
-                grupo["contatos"].append({"nome": nome_socio, "cargo": "Sócio", "email": None, "telefone": None})
+                grupo["contatos"].append({
+                    "nome": nome_socio,
+                    "cargo": "Sócio",
+                    "email": email_empresa,
+                    "telefone": telefone_empresa,
+                })
 
         grupo["empresas"].append({
             "id": _texto(d.get("ID")),
