@@ -160,7 +160,10 @@ def carregar_identidade():
                     "ef": _data_iso(d.get("Implantação EF")),
                     "paralegal": _data_iso(d.get("Implantação Paralegal")),
                 },
-                "contatos": [],
+                # nome -> contato; fica como dict até o fim da função pra
+                # permitir trocar por um candidato mais específico (ver
+                # comentário abaixo) sem perder a ordem de primeira aparição.
+                "contatos": OrderedDict(),
                 "equipe": {
                     "gerente": _texto(d.get("Gerente")),
                     "secretaria": _texto(d.get("Secretaria")),
@@ -180,17 +183,25 @@ def carregar_identidade():
         socio_texto = html.unescape(d.get("Socio") or "")
         socios = [s.strip() for s in socio_texto.split(";") if s.strip()]
         # A planilha não tem e-mail/telefone por sócio, só por empresa -- usa
-        # o da linha (empresa) em que o sócio apareceu primeiro.
+        # o da linha (empresa) em que o sócio apareceu. Quando o mesmo sócio
+        # aparece em várias linhas (ex: numa linha-resumo do grupo com todos
+        # os sócios juntos E na linha da empresa exclusiva dele), preferimos
+        # o contato da linha mais específica -- menos sócios listados na
+        # mesma linha, mais provável de ser o contato pessoal dele, em vez do
+        # contato genérico do grupo repetido pra todo mundo.
         email_empresa = _texto(d.get("Email"))
         telefone_empresa = _texto(d.get("Telefone"))
+        especificidade = len(socios)
         for nome_socio in socios:
-            if not any(c["nome"] == nome_socio for c in grupo["contatos"]):
-                grupo["contatos"].append({
+            atual = grupo["contatos"].get(nome_socio)
+            if atual is None or especificidade < atual["_especificidade"]:
+                grupo["contatos"][nome_socio] = {
                     "nome": nome_socio,
                     "cargo": "Sócio",
                     "email": email_empresa,
                     "telefone": telefone_empresa,
-                })
+                    "_especificidade": especificidade,
+                }
 
         grupo["empresas"].append({
             "id": _texto(d.get("ID")),
@@ -205,6 +216,12 @@ def carregar_identidade():
             "socios": socios,
             "impostos": [],
         })
+
+    for grupo in grupos.values():
+        grupo["contatos"] = [
+            {k: v for k, v in c.items() if k != "_especificidade"}
+            for c in grupo["contatos"].values()
+        ]
 
     return {"grupos": list(grupos.values())}
 
