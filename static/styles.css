@@ -64,13 +64,14 @@ body {
 .topbar-info { display: flex; flex-direction: column; gap: 2px; }
 .topbar-title { color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: .5px; }
 .topbar-atualizado { color: rgba(255,255,255,.75); font-size: .75rem; }
-.btn-tema {
-  margin-left: auto;
+.btn-planilha, .btn-tema {
   background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.5);
   color: #fff; font-size: .8rem; font-weight: 600;
   padding: 6px 18px; border-radius: 20px; cursor: pointer; transition: background .15s;
+  text-decoration: none; display: inline-block;
 }
-.btn-tema:hover { background: rgba(255,255,255,.28); }
+.btn-planilha { margin-left: auto; }
+.btn-planilha:hover, .btn-tema:hover { background: rgba(255,255,255,.28); }
 
 /* ── Layout ── */
 .container { max-width: 1440px; margin: 0 auto; padding: 28px 40px 60px; }
