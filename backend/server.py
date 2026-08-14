@@ -5,7 +5,9 @@ Portal de Implantação — backend.
 - Identidade dos grupos (nome, contatos, equipe, dados contratuais,
   empresas, datas de implantação e se a implantação foi realizada) vem
   da planilha data/base/base implantação.xlsx (aba "Clientes"), só leitura pelo
-  portal — quem mantém essa informação em dia é quem edita a planilha.
+  portal. Quem mantém essa informação em dia edita a planilha no OneDrive;
+  um script separado (scripts/sync_planilha.py, rodando na máquina do
+  usuário) copia a versão atualizada pra cá e dá commit/push sozinho.
   A coluna "GrupoID" é a chave que liga uma linha (empresa) da planilha
   ao grupo_id usado no Postgres; várias linhas com o mesmo GrupoID
   formam um grupo com várias empresas.
