@@ -40,6 +40,9 @@ from flask import Flask, jsonify, request, send_from_directory
 # ── Caminhos e config ────────────────────────────────────────
 RAIZ = Path(__file__).resolve().parent.parent
 ARQUIVO_EXCEL = RAIZ / "data" / "base" / "base implantação.xlsx"
+# Escrito pelo scripts/sync_planilha.py a cada sync -- ver comentário lá
+# sobre por que não usar a data de modificação do próprio .xlsx.
+ARQUIVO_TIMESTAMP = RAIZ / "data" / "base" / "atualizado_em.txt"
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
@@ -362,6 +365,16 @@ def calcular_progresso(por_area):
 
 
 # ── API ──────────────────────────────────────────────────────
+@app.get("/api/planilha-atualizada-em")
+def planilha_atualizada_em():
+    """Hora da última sincronização da planilha (scripts/sync_planilha.py),
+    pra barra superior mostrar 'Base atualizada em ...'. None se o sync
+    nunca rodou (ex: instalação nova sem o arquivo de timestamp ainda)."""
+    if not ARQUIVO_TIMESTAMP.exists():
+        return jsonify({"atualizadoEm": None})
+    return jsonify({"atualizadoEm": ARQUIVO_TIMESTAMP.read_text(encoding="utf-8").strip()})
+
+
 @app.get("/api/grupos")
 def listar_grupos():
     """Lista enxuta para a Tela 1 (nome, datas por área e progresso)."""

@@ -16,12 +16,19 @@ import logging
 import shutil
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 ORIGEM = Path(r"C:\Users\warruda\OneDrive - Mgcontecnica\Base_Implantação\base implantação.xlsx")
 
 RAIZ_REPO = Path(__file__).resolve().parent.parent
 DESTINO = RAIZ_REPO / "data" / "base" / "base implantação.xlsx"
+# Sidecar com a hora da última sincronização -- o backend expõe isso na API
+# pro front mostrar "Base atualizada em ..." na barra superior. Guardado à
+# parte (em vez de usar a data de modificação do arquivo) porque no deploy
+# do Render o checkout do git muda a mtime do .xlsx pra hora do deploy, não
+# pra hora real da última edição.
+ARQUIVO_TIMESTAMP = DESTINO.parent / "atualizado_em.txt"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,9 +72,10 @@ def main():
 
     DESTINO.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(ORIGEM, DESTINO)
+    ARQUIVO_TIMESTAMP.write_text(datetime.now().astimezone().isoformat(), encoding="utf-8")
     log.info("Planilha copiada do OneDrive pro repo.")
 
-    _git("add", str(DESTINO.relative_to(RAIZ_REPO)))
+    _git("add", str(DESTINO.relative_to(RAIZ_REPO)), str(ARQUIVO_TIMESTAMP.relative_to(RAIZ_REPO)))
 
     # git diff --cached --quiet devolve 0 se não há nada staged (pode
     # acontecer se o conteúdo binário mudou mas o git já tinha essa versão).

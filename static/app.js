@@ -470,4 +470,22 @@ async function carregarLista() {
   }
 }
 
+// Mostra na barra superior quando a planilha de identidade dos grupos foi
+// sincronizada pela última vez (scripts/sync_planilha.py) -- fica em
+// branco se o sync nunca rodou nesse ambiente, em vez de mostrar erro.
+async function carregarAtualizacaoDaBase() {
+  const alvo = document.getElementById('topbar-atualizado');
+  try {
+    const { atualizadoEm } = await API.planilhaAtualizadaEm();
+    if (!atualizadoEm) return;
+    const data = new Date(atualizadoEm);
+    const dataFmt = data.toLocaleDateString('pt-BR');
+    const horaFmt = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    alvo.textContent = `Base atualizada em ${dataFmt} às ${horaFmt}`;
+  } catch (e) {
+    // silencioso: é uma informação secundária, não deve travar a Tela 1
+  }
+}
+
 carregarLista();
+carregarAtualizacaoDaBase();

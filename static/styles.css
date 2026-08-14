@@ -63,6 +63,7 @@ body {
 .topbar-logo { height: 42px; width: auto; object-fit: contain; }
 .topbar-info { display: flex; flex-direction: column; gap: 2px; }
 .topbar-title { color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: .5px; }
+.topbar-atualizado { color: rgba(255,255,255,.75); font-size: .75rem; }
 .btn-tema {
   margin-left: auto;
   background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.5);

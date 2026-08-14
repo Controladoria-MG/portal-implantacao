@@ -10,6 +10,12 @@
 const API_BASE = '';
 
 const API = {
+  async planilhaAtualizadaEm() {
+    const r = await fetch(`${API_BASE}/api/planilha-atualizada-em`);
+    if (!r.ok) throw new Error('Falha ao consultar atualização da base');
+    return r.json();
+  },
+
   async listarGrupos() {
     const r = await fetch(`${API_BASE}/api/grupos`);
     if (!r.ok) throw new Error('Falha ao carregar grupos');
