@@ -19,6 +19,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import openpyxl
+
 ORIGEM = Path(r"C:\Users\warruda\OneDrive - Mgcontecnica\Base_Implantação\base implantação.xlsx")
 
 RAIZ_REPO = Path(__file__).resolve().parent.parent
@@ -39,6 +41,79 @@ logging.basicConfig(
     ],
 )
 log = logging.getLogger("sync_planilha")
+
+
+def _ler_linhas(caminho):
+    """Lê a aba 'Clientes' e devolve {ID: {coluna: valor}} -- ID é a
+    chave de cada linha (empresa) na planilha, então serve pra comparar
+    duas versões e achar o que mudou linha a linha."""
+    wb = openpyxl.load_workbook(caminho, data_only=True)
+    ws = wb["Clientes"]
+    cabecalho = [c.value for c in ws[1]]
+    linhas = {}
+    for linha in ws.iter_rows(min_row=2, values_only=True):
+        d = dict(zip(cabecalho, linha))
+        id_empresa = d.get("ID")
+        if id_empresa is None:
+            continue
+        linhas[id_empresa] = d
+    return linhas
+
+
+def _norm(valor):
+    """None e string vazia contam como 'sem valor' -- evita ruído no diff
+    (célula vazia vs. célula nunca preenchida não é uma mudança real)."""
+    if valor is None:
+        return ""
+    return str(valor).strip()
+
+
+def _nome_linha(d):
+    return d.get("RazaoSocial") or d.get("Grupo") or "?"
+
+
+def _log_diferencas(antigas, novas):
+    """Compara as linhas antigas x novas por ID e loga o que mudou:
+    empresas novas, removidas e, pras que continuam, quais campos
+    mudaram de valor."""
+    ids_antigos = set(antigas)
+    ids_novos = set(novas)
+
+    adicionadas = ids_novos - ids_antigos
+    removidas = ids_antigos - ids_novos
+    em_comum = ids_antigos & ids_novos
+
+    alteracoes = {}
+    for id_empresa in em_comum:
+        antiga, nova = antigas[id_empresa], novas[id_empresa]
+        campos = set(antiga) | set(nova)
+        mudou = [
+            (campo, antiga.get(campo), nova.get(campo))
+            for campo in campos
+            if campo != "ID" and _norm(antiga.get(campo)) != _norm(nova.get(campo))
+        ]
+        if mudou:
+            alteracoes[id_empresa] = mudou
+
+    if not (adicionadas or removidas or alteracoes):
+        log.info("Planilha mudou (ex: formatação), mas nenhuma linha de dado foi alterada.")
+        return
+
+    log.info(
+        "Alterações: %d empresa(s) nova(s), %d removida(s), %d alterada(s).",
+        len(adicionadas), len(removidas), len(alteracoes),
+    )
+    for id_empresa in sorted(adicionadas, key=str):
+        log.info("  + %s (ID %s)", _nome_linha(novas[id_empresa]), id_empresa)
+    for id_empresa in sorted(removidas, key=str):
+        log.info("  - %s (ID %s)", _nome_linha(antigas[id_empresa]), id_empresa)
+    for id_empresa in sorted(alteracoes, key=str):
+        nome = _nome_linha(novas[id_empresa])
+        detalhes = "; ".join(
+            f"{campo}: {_norm(antigo) or '(vazio)'} -> {_norm(novo) or '(vazio)'}"
+            for campo, antigo, novo in alteracoes[id_empresa]
+        )
+        log.info("  * %s (ID %s): %s", nome, id_empresa, detalhes)
 
 
 def _git(*args):
@@ -69,6 +144,14 @@ def main():
     if DESTINO.exists() and filecmp.cmp(ORIGEM, DESTINO, shallow=False):
         log.info("Planilha já está igual, nada pra sincronizar.")
         return
+
+    if DESTINO.exists():
+        try:
+            _log_diferencas(_ler_linhas(DESTINO), _ler_linhas(ORIGEM))
+        except Exception:
+            log.exception("Não deu pra calcular o diff da planilha (sync segue normalmente).")
+    else:
+        log.info("Primeira sincronização, sem versão anterior pra comparar.")
 
     DESTINO.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(ORIGEM, DESTINO)
