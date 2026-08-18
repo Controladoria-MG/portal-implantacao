@@ -210,7 +210,7 @@ def carregar_identidade():
         especificidade = len(pessoas)
         for pessoa in pessoas:
             atual = grupo["contatos"].get(pessoa["nome"])
-            if atual is None or especificidade < atual["_especificidade"]:
+            if atual is None:
                 grupo["contatos"][pessoa["nome"]] = {
                     "nome": pessoa["nome"],
                     "cargo": pessoa["cargo"],
@@ -218,6 +218,18 @@ def carregar_identidade():
                     "telefone": telefone_empresa,
                     "_especificidade": especificidade,
                 }
+                continue
+            if especificidade < atual["_especificidade"]:
+                atual["email"] = email_empresa
+                atual["telefone"] = telefone_empresa
+                atual["_especificidade"] = especificidade
+            # "Sócio" gruda: se a pessoa tem a marca (Sócio) em QUALQUER
+            # linha onde aparece, o cargo fica Sócio pra sempre, mesmo que
+            # a linha escolhida acima pro e-mail/telefone seja outra sem a
+            # marca (ex: mesmo sócio listado com e sem "(Sócio)" em linhas
+            # diferentes da planilha).
+            if pessoa["cargo"] == "Sócio":
+                atual["cargo"] = "Sócio"
 
         grupo["empresas"].append({
             "id": _texto(d.get("ID")),
