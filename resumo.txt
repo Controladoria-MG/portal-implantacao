@@ -1,5 +1,5 @@
 PORTAL DE IMPLANTAÇÃO — RESUMO DO PROJETO
-Atualizado em: 10/08/2026
+Atualizado em: 14/08/2026
 
 ===========================================================
 1. O QUE É
@@ -20,7 +20,9 @@ Pasta local: Portal-implantacao-tmp/
   - backend/server.py     Servidor Flask
   - backend/schema_postgres.sql   Schema do banco (tabelas + checklist inicial)
   - data/base/base implantação.xlsx Planilha de origem (identidade dos grupos)
+  - data/base/atualizado_em.txt     Hora do último sync (ver seção 6, 14/08/2026)
   - data/imagens/logo.png
+  - scripts/sync_planilha.py        Copia a planilha do OneDrive pro repo e dá push (ver seção 6)
 
 ===========================================================
 2. ARQUITETURA: DUAS FONTES DE DADOS
@@ -138,6 +140,51 @@ Também: quando "Realizada" é verdadeiro, a data aparece numa pílula
 "Data de implantação", só o checklist. Planilha renomeada de
 "base 1.xlsx" pra "base implantação.xlsx" (data/base/), com o caminho
 atualizado em backend/server.py (ARQUIVO_EXCEL).
+
+--- 14/08/2026: planilha sai do fluxo manual, vai pro OneDrive ---
+
+Antes, atualizar um dado de cliente exigia editar a planilha local
+do repo e dar commit/push na mão — repetitivo pra quem só queria
+mudar uma data. Trocado por um fluxo em duas pontas:
+
+  a) A planilha "oficial" agora mora no OneDrive
+     (Base_Implantação/base implantação.xlsx), não mais só no repo.
+     Quem for atualizar dado de cliente edita direto lá.
+  b) scripts/sync_planilha.py copia a versão do OneDrive pra
+     data/base/base implantação.xlsx e faz commit+push sozinho,
+     só quando o conteúdo realmente mudou. Roda manual
+     (python scripts/sync_planilha.py); grava também
+     data/base/atualizado_em.txt com a hora do sync, que a Tela 1
+     mostra na barra superior ("Base atualizada em ..." — endpoint
+     GET /api/planilha-atualizada-em).
+  c) Também nesse dia: as colunas de data (ContratoMG ainda
+     pendente, CTB/EF/DP já feito) passaram de número serial cru do
+     Excel (ex: 46251) pra formato de Data de verdade — o backend já
+     sabia ler célula formatada como data
+     (_para_datetime_excel em backend/server.py), só a formatação da
+     célula estava errada. Necessário pra planilha ficar legível pra
+     quem não é da equipe técnica.
+
+  BOTÃO "Editar planilha" (barra superior, index.html):
+  Link direto pro arquivo no OneDrive, abre em nova aba. Existe
+  porque, com a planilha fora do repo, quem quiser atualizar um
+  dado de cliente não tem mais como achar o arquivo local (nem
+  deveria editar a cópia do repo, que agora é só uma cópia
+  sincronizada) — o botão poupa a pessoa de procurar o link ou
+  pedir pra alguém do time técnico. Usa o link de compartilhamento
+  "Pessoas em Mgcontecnica" (não é público — exige estar logado com
+  conta @mgcontecnica.com.br), então funciona pra qualquer um da
+  equipe, não só pra quem criou o link.
+
+  Observação: tentou-se primeiro um link "qualquer pessoa" (público,
+  sem login) pra eliminar a etapa manual do sync_planilha.py também
+  — o backend leria a planilha direto da nuvem a cada request, sem
+  precisar de commit/push nenhum. Não deu porque a política do
+  Microsoft 365 da MG bloqueia esse tipo de link (só aparecem as
+  opções "Pessoas em Mgcontecnica", "Pessoas com acesso existente" e
+  "Pessoas específicas" no compartilhamento). Por isso o desenho
+  ficou em duas peças (planilha no OneDrive + script de sync) em vez
+  de uma leitura direta.
 
 ===========================================================
 7. PENDÊNCIAS / PONTOS DE ATENÇÃO
