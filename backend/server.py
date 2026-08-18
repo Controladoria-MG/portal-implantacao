@@ -52,14 +52,15 @@ AREAS = ("dp", "ef", "ctb", "paralegal", "gerencia")
 
 # Contato responsável por cada departamento: (sufixo das colunas na
 # planilha -- Contato<sufixo>/Email<sufixo>/Telefone<sufixo> --, cargo
-# mostrado no portal). Sufixo segue a mesma abreviação (EF/CTB/DP/Paralegal)
-# já usada nas colunas "Implantação <área>" da planilha; o cargo usa o nome
-# como aparece no resto do portal (ex: tituloFiscal no app.js).
+# mostrado no portal). Sufixo segue a mesma abreviação (CTB/EF/DP) e ordem
+# já usadas nas colunas "Implantação <área>" da planilha; o cargo usa o
+# nome como aparece no resto do portal (ex: tituloFiscal no app.js).
+# Paralegal fica de fora -- decisão do usuário em 18/08/2026, não tem
+# contato próprio por enquanto.
 CONTATOS_POR_DEPARTAMENTO = (
-    ("EF", "Fiscal"),
     ("CTB", "Contábil"),
+    ("EF", "Fiscal"),
     ("DP", "DP"),
-    ("Paralegal", "Paralegal"),
 )
 
 app = Flask(__name__, static_folder=None)
