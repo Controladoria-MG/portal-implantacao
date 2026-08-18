@@ -288,9 +288,9 @@ body {
 /* Contatos */
 .contato-item { padding: 7px 0; border-bottom: 1px solid var(--border-row); }
 .contato-item:last-child { border-bottom: none; }
-.contato-nome { font-size: .82rem; font-weight: 700; color: var(--text-primary); }
-.contato-cargo { font-size: .7rem; font-weight: 500; color: var(--text-muted); }
-.contato-det { font-size: .78rem; color: var(--text-secondary); }
+.contato-nome { font-size: .92rem; font-weight: 700; color: var(--text-primary); }
+.contato-cargo { font-size: .78rem; font-weight: 500; color: var(--text-muted); }
+.contato-det { font-size: .88rem; color: var(--text-secondary); }
 
 /* ── Seções ── */
 .secao { margin-top: 26px; }
