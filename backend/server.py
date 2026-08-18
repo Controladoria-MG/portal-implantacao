@@ -199,14 +199,14 @@ def carregar_identidade():
             # com o dicionário de sócios/contatos (que usa o nome cru como
             # chave), mesmo se a mesma pessoa aparecer nos dois.
             for sufixo, cargo in CONTATOS_POR_DEPARTAMENTO:
-                nome_contato = _texto(d.get(f"Contato{sufixo}"))
+                nome_contato = _texto(d.get(f"Contato {sufixo}"))
                 if not nome_contato:
                     continue
                 grupos[grupo_id]["contatos"][f"depto:{sufixo}"] = {
                     "nome": nome_contato,
                     "cargo": cargo,
-                    "email": _texto(d.get(f"Email{sufixo}")),
-                    "telefone": _texto(d.get(f"Telefone{sufixo}")),
+                    "email": _texto(d.get(f"Email {sufixo}")),
+                    "telefone": _texto(d.get(f"Telefone {sufixo}")),
                     "_especificidade": -1,
                 }
 

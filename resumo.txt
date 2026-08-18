@@ -81,13 +81,16 @@ cliente que fala antes do sócio. Colunas opcionais, um trio por
 departamento, lidas só da PRIMEIRA linha do grupo (é dado do
 grupo, não de uma empresa específica):
 
-  ContatoCTB, EmailCTB, TelefoneCTB             -> aparece como "Contábil"
-  ContatoEF, EmailEF, TelefoneEF               -> aparece como "Fiscal"
-  ContatoDP, EmailDP, TelefoneDP                -> aparece como "DP"
+  Contato CTB, Email CTB, Telefone CTB          -> aparece como "Contábil"
+  Contato EF, Email EF, Telefone EF             -> aparece como "Fiscal"
+  Contato DP, Email DP, Telefone DP             -> aparece como "DP"
+
+Nome da coluna tem espaço antes da sigla (igual "Implantação CTB"),
+não é "ContatoCTB" grudado.
 
 Paralegal não tem contato próprio (decisão do usuário, 18/08/2026).
 
-Se "Contato<X>" estiver vazio, esse departamento simplesmente não
+Se "Contato <X>" estiver vazio, esse departamento simplesmente não
 aparece na caixa de Contatos da Tela 2. Diferente do sócio, e-mail
 e telefone aqui são os da PESSOA mesmo (colunas próprias, sem
 ambiguidade de qual pertence a quem).
