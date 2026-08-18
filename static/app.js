@@ -208,14 +208,21 @@ function cardDepto(grupo, titulo, area, dataIso, pct) {
 
 // ── Cards informativos ────────────────────────────────────────
 function caixaContatos(grupo) {
-  const itens = grupo.contatos.map(c => `
+  // Sócio só mostra o nome: o e-mail/telefone que a planilha traz pra ele é
+  // o da empresa, não o pessoal dele, então mostrar isso enganaria.
+  const socios = grupo.contatos.filter(c => c.cargo === 'Sócio');
+  const outros = grupo.contatos.filter(c => c.cargo !== 'Sócio');
+
+  const linhaSocios = `<div class="box-linha"><span class="rotulo">Sócio(s)</span><span class="valor">${escapar(socios.map(s => s.nome).join(', ')) || '—'}</span></div>`;
+
+  const itens = outros.map(c => `
     <div class="contato-item">
       <div class="contato-nome">${escapar(c.nome)} <span class="contato-cargo">${escapar(c.cargo)}</span></div>
       <div class="contato-det">${escapar(c.email) || '<span class="vazio">sem e-mail</span>'}</div>
       <div class="contato-det">${escapar(c.telefone) || '<span class="vazio">sem telefone</span>'}</div>
     </div>
   `).join('');
-  return `<div class="box"><div class="box-titulo">Contatos</div>${itens || '<div class="vazio">Sem contatos</div>'}</div>`;
+  return `<div class="box"><div class="box-titulo">Contatos</div>${linhaSocios}${itens || '<div class="vazio">Sem outros contatos</div>'}</div>`;
 }
 
 function caixaEquipe(grupo) {

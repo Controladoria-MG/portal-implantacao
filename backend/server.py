@@ -50,6 +50,18 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 
 AREAS = ("dp", "ef", "ctb", "paralegal", "gerencia")
 
+# Contato responsável por cada departamento: (sufixo das colunas na
+# planilha -- Contato<sufixo>/Email<sufixo>/Telefone<sufixo> --, cargo
+# mostrado no portal). Sufixo segue a mesma abreviação (EF/CTB/DP/Paralegal)
+# já usada nas colunas "Implantação <área>" da planilha; o cargo usa o nome
+# como aparece no resto do portal (ex: tituloFiscal no app.js).
+CONTATOS_POR_DEPARTAMENTO = (
+    ("EF", "Fiscal"),
+    ("CTB", "Contábil"),
+    ("DP", "DP"),
+    ("Paralegal", "Paralegal"),
+)
+
 app = Flask(__name__, static_folder=None)
 
 # Pool de conexões: abrir uma conexão nova (handshake TLS com o Postgres do
@@ -180,6 +192,22 @@ def carregar_identidade():
                 },
                 "empresas": [],
             }
+            # Contato por departamento é dado do grupo, não da empresa -- só
+            # lido uma vez, na primeira linha do grupo (mesmo padrão de
+            # "equipe" acima). Chave prefixada com "depto:" pra nunca colidir
+            # com o dicionário de sócios/contatos (que usa o nome cru como
+            # chave), mesmo se a mesma pessoa aparecer nos dois.
+            for sufixo, cargo in CONTATOS_POR_DEPARTAMENTO:
+                nome_contato = _texto(d.get(f"Contato{sufixo}"))
+                if not nome_contato:
+                    continue
+                grupos[grupo_id]["contatos"][f"depto:{sufixo}"] = {
+                    "nome": nome_contato,
+                    "cargo": cargo,
+                    "email": _texto(d.get(f"Email{sufixo}")),
+                    "telefone": _texto(d.get(f"Telefone{sufixo}")),
+                    "_especificidade": -1,
+                }
 
         grupo = grupos[grupo_id]
         # html.unescape antes de separar: nomes colados de fontes já escapadas
