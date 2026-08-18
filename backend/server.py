@@ -127,6 +127,11 @@ def _bool_sim_nao(valor):
     return str(valor or "").strip().lower() in ("sim", "true", "1", "x")
 
 
+# Limpa um "(Sócio)" sobrando no fim do nome (convenção antiga da coluna
+# Socio, hoje sem função -- ver carregar_identidade).
+_RE_MARCA_SOCIO = re.compile(r"\s*[\(\[-]?\s*s[oó]cio\s*[\)\]]?\s*$", re.IGNORECASE)
+
+
 _MAPA_ACENTOS = str.maketrans("áàãâéêíóõôúç", "aaaaeeiooouc")
 
 
@@ -216,22 +221,16 @@ def carregar_identidade():
         # ("&amp;"), que quebraria o split abaixo no lugar errado.
         socio_texto = html.unescape(d.get("Socio") or "")
         nomes_brutos = [s.strip() for s in socio_texto.split(";") if s.strip()]
-        # Convenção da planilha: quem é sócio de verdade tem "(Sócio)" no fim
-        # do nome; quem aparece sem essa marca é um contato direto (ex:
-        # financeiro) que fala antes do sócio, mas não é sócio. Tolerante a
-        # maiúscula/minúscula, com/sem acento e com/sem os parênteses (ex:
-        # "socio", "SÓCIO", "[Sócio]", "- Socio" também contam).
-        pessoas = []
-        for nome_bruto in nomes_brutos:
-            m = re.match(
-                r"^(.*?)\s*[\(\[-]?\s*s[oó]cio\s*[\)\]]?\s*$",
-                nome_bruto,
-                re.IGNORECASE,
-            )
-            if m:
-                pessoas.append({"nome": m.group(1).strip(), "cargo": "Sócio"})
-            else:
-                pessoas.append({"nome": nome_bruto, "cargo": "Contato"})
+        # Todo nome na coluna Socio é sócio, ponto -- não precisa mais da
+        # marca "(Sócio)" pra distinguir de contato direto, já que isso
+        # agora tem colunas próprias (Contato CTB/EF/DP). Ainda limpamos um
+        # "(Sócio)" sobrando no nome (convenção antiga, muita gente na
+        # planilha ainda está marcada assim) só pra não repetir "Sócio" duas
+        # vezes na tela -- não afeta mais o cargo, que já é sempre Sócio.
+        pessoas = [
+            {"nome": _RE_MARCA_SOCIO.sub("", nome_bruto).strip(), "cargo": "Sócio"}
+            for nome_bruto in nomes_brutos
+        ]
 
         # A planilha não tem e-mail/telefone por pessoa, só por empresa -- usa
         # o da linha (empresa) em que a pessoa apareceu. Quando a mesma pessoa
@@ -253,18 +252,10 @@ def carregar_identidade():
                     "telefone": telefone_empresa,
                     "_especificidade": especificidade,
                 }
-                continue
-            if especificidade < atual["_especificidade"]:
+            elif especificidade < atual["_especificidade"]:
                 atual["email"] = email_empresa
                 atual["telefone"] = telefone_empresa
                 atual["_especificidade"] = especificidade
-            # "Sócio" gruda: se a pessoa tem a marca (Sócio) em QUALQUER
-            # linha onde aparece, o cargo fica Sócio pra sempre, mesmo que
-            # a linha escolhida acima pro e-mail/telefone seja outra sem a
-            # marca (ex: mesmo sócio listado com e sem "(Sócio)" em linhas
-            # diferentes da planilha).
-            if pessoa["cargo"] == "Sócio":
-                atual["cargo"] = "Sócio"
 
         grupo["empresas"].append({
             "id": _texto(d.get("ID")),
@@ -276,7 +267,7 @@ def carregar_identidade():
             "endereco": _texto(d.get("Endereco")),
             "email": _texto(d.get("Email")),
             "telefone": _texto(d.get("Telefone")),
-            "socios": [p["nome"] for p in pessoas if p["cargo"] == "Sócio"],
+            "socios": [p["nome"] for p in pessoas],
             "impostos": [],
         })
 
