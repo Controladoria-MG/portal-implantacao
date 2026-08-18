@@ -189,10 +189,16 @@ def carregar_identidade():
         nomes_brutos = [s.strip() for s in socio_texto.split(";") if s.strip()]
         # Convenção da planilha: quem é sócio de verdade tem "(Sócio)" no fim
         # do nome; quem aparece sem essa marca é um contato direto (ex:
-        # financeiro) que fala antes do sócio, mas não é sócio.
+        # financeiro) que fala antes do sócio, mas não é sócio. Tolerante a
+        # maiúscula/minúscula, com/sem acento e com/sem os parênteses (ex:
+        # "socio", "SÓCIO", "[Sócio]", "- Socio" também contam).
         pessoas = []
         for nome_bruto in nomes_brutos:
-            m = re.match(r"^(.*?)\s*\(s[oó]cio\)\s*$", nome_bruto, re.IGNORECASE)
+            m = re.match(
+                r"^(.*?)\s*[\(\[-]?\s*s[oó]cio\s*[\)\]]?\s*$",
+                nome_bruto,
+                re.IGNORECASE,
+            )
             if m:
                 pessoas.append({"nome": m.group(1).strip(), "cargo": "Sócio"})
             else:
