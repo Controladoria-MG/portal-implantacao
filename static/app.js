@@ -207,6 +207,14 @@ function cardDepto(grupo, titulo, area, dataIso, pct) {
 }
 
 // ── Cards informativos ────────────────────────────────────────
+// Sócio na planilha costuma vir com nome completo (do meio incluso); na
+// tela mostramos só primeiro e último nome, mais legível no espaço curto
+// da caixa de Contatos.
+function nomeCurto(nome) {
+  const partes = nome.trim().split(/\s+/);
+  return partes.length > 2 ? `${partes[0]} ${partes[partes.length - 1]}` : nome;
+}
+
 function itemContato(c) {
   return `
     <div class="contato-item">
@@ -218,12 +226,16 @@ function itemContato(c) {
 }
 
 function caixaContatos(grupo) {
-  const socios = grupo.contatos.filter(c => c.cargo === 'Sócio');
+  const socios = grupo.contatos
+    .filter(c => c.cargo === 'Sócio')
+    .map(c => ({ ...c, nome: nomeCurto(c.nome) }));
   const outros = grupo.contatos.filter(c => c.cargo !== 'Sócio');
 
   // Sem contato de departamento cadastrado (colunas novas ainda vazias pro
   // grupo) -- volta a mostrar o sócio com e-mail/telefone, como era antes,
-  // em vez de deixar a caixa sem nenhum contato útil.
+  // em vez de deixar a caixa sem nenhum contato útil. Mesmo estilo
+  // (.contato-item) dos outros contatos, pra não ficar com tamanho/cor de
+  // fonte diferente entre sócio e contato de departamento.
   if (outros.length === 0) {
     const itens = socios.map(itemContato).join('');
     return `<div class="box"><div class="box-titulo">Contatos</div>${itens || '<div class="vazio">Sem contatos</div>'}</div>`;
@@ -232,8 +244,14 @@ function caixaContatos(grupo) {
   // Tem contato de departamento: aí sim o sócio só mostra o nome (o
   // e-mail/telefone que a planilha traz pra ele é o da empresa, não o
   // pessoal dele, então mostrar isso enganaria) e os contatos precisos
-  // aparecem abaixo.
-  const linhaSocios = `<div class="box-linha"><span class="rotulo">Sócio(s)</span><span class="valor">${escapar(socios.map(s => s.nome).join(', ')) || '—'}</span></div>`;
+  // aparecem abaixo -- mesmo estilo .contato-nome/.contato-cargo dos
+  // outros itens, só sem as linhas de e-mail/telefone.
+  const rotulo = socios.length > 1 ? 'Sócios' : 'Sócio';
+  const linhaSocios = socios.length ? `
+    <div class="contato-item">
+      <div class="contato-nome">${escapar(socios.map(s => s.nome).join(', '))} <span class="contato-cargo">${rotulo}</span></div>
+    </div>
+  ` : '';
   const itens = outros.map(itemContato).join('');
   return `<div class="box"><div class="box-titulo">Contatos</div>${linhaSocios}${itens}</div>`;
 }
