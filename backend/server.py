@@ -186,23 +186,34 @@ def carregar_identidade():
         # em HTML (ex: "AA&amp;MARTINS") têm um ';' dentro da própria entidade
         # ("&amp;"), que quebraria o split abaixo no lugar errado.
         socio_texto = html.unescape(d.get("Socio") or "")
-        socios = [s.strip() for s in socio_texto.split(";") if s.strip()]
-        # A planilha não tem e-mail/telefone por sócio, só por empresa -- usa
-        # o da linha (empresa) em que o sócio apareceu. Quando o mesmo sócio
+        nomes_brutos = [s.strip() for s in socio_texto.split(";") if s.strip()]
+        # Convenção da planilha: quem é sócio de verdade tem "(Sócio)" no fim
+        # do nome; quem aparece sem essa marca é um contato direto (ex:
+        # financeiro) que fala antes do sócio, mas não é sócio.
+        pessoas = []
+        for nome_bruto in nomes_brutos:
+            m = re.match(r"^(.*?)\s*\(s[oó]cio\)\s*$", nome_bruto, re.IGNORECASE)
+            if m:
+                pessoas.append({"nome": m.group(1).strip(), "cargo": "Sócio"})
+            else:
+                pessoas.append({"nome": nome_bruto, "cargo": "Contato"})
+
+        # A planilha não tem e-mail/telefone por pessoa, só por empresa -- usa
+        # o da linha (empresa) em que a pessoa apareceu. Quando a mesma pessoa
         # aparece em várias linhas (ex: numa linha-resumo do grupo com todos
-        # os sócios juntos E na linha da empresa exclusiva dele), preferimos
-        # o contato da linha mais específica -- menos sócios listados na
-        # mesma linha, mais provável de ser o contato pessoal dele, em vez do
-        # contato genérico do grupo repetido pra todo mundo.
+        # juntos E na linha da empresa exclusiva dela), preferimos o contato
+        # da linha mais específica -- menos nomes listados na mesma linha,
+        # mais provável de ser o contato pessoal dela, em vez do contato
+        # genérico do grupo repetido pra todo mundo.
         email_empresa = _texto(d.get("Email"))
         telefone_empresa = _texto(d.get("Telefone"))
-        especificidade = len(socios)
-        for nome_socio in socios:
-            atual = grupo["contatos"].get(nome_socio)
+        especificidade = len(pessoas)
+        for pessoa in pessoas:
+            atual = grupo["contatos"].get(pessoa["nome"])
             if atual is None or especificidade < atual["_especificidade"]:
-                grupo["contatos"][nome_socio] = {
-                    "nome": nome_socio,
-                    "cargo": "Sócio",
+                grupo["contatos"][pessoa["nome"]] = {
+                    "nome": pessoa["nome"],
+                    "cargo": pessoa["cargo"],
                     "email": email_empresa,
                     "telefone": telefone_empresa,
                     "_especificidade": especificidade,
@@ -218,7 +229,7 @@ def carregar_identidade():
             "endereco": _texto(d.get("Endereco")),
             "email": _texto(d.get("Email")),
             "telefone": _texto(d.get("Telefone")),
-            "socios": socios,
+            "socios": [p["nome"] for p in pessoas if p["cargo"] == "Sócio"],
             "impostos": [],
         })
 
