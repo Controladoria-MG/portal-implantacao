@@ -3,7 +3,11 @@ Sincroniza a planilha de identidade dos grupos do OneDrive pro repositório.
 
 O usuário edita a planilha direto no OneDrive (Base_Implantação/base
 implantação.xlsx); este script copia a versão atual pra
-data/base/base implantação.xlsx e dá commit + push sozinho, se algo mudou.
+data/base/base implantação.xlsx e dá commit + push sozinho.
+Sempre atualiza data/base/atualizado_em.txt com a hora da execução,
+mesmo quando a planilha não mudou -- é essa hora que o front mostra
+como "Base atualizada em ...", e ela precisa refletir quando o sync
+rodou de fato, não só a última vez que algum dado mudou.
 Feito pra rodar sem supervisão (Agendador de Tarefas do Windows) -- por
 isso registra tudo em scripts/sync_planilha.log em vez de só print().
 
@@ -141,22 +145,28 @@ def main():
         log.error("git pull falhou, abortando sync:\n%s", saida)
         sys.exit(1)
 
-    if DESTINO.exists() and filecmp.cmp(ORIGEM, DESTINO, shallow=False):
+    houve_mudanca = not (DESTINO.exists() and filecmp.cmp(ORIGEM, DESTINO, shallow=False))
+
+    if not houve_mudanca:
         log.info("Planilha já está igual, nada pra sincronizar.")
-        return
-
-    if DESTINO.exists():
-        try:
-            _log_diferencas(_ler_linhas(DESTINO), _ler_linhas(ORIGEM))
-        except Exception:
-            log.exception("Não deu pra calcular o diff da planilha (sync segue normalmente).")
     else:
-        log.info("Primeira sincronização, sem versão anterior pra comparar.")
+        if DESTINO.exists():
+            try:
+                _log_diferencas(_ler_linhas(DESTINO), _ler_linhas(ORIGEM))
+            except Exception:
+                log.exception("Não deu pra calcular o diff da planilha (sync segue normalmente).")
+        else:
+            log.info("Primeira sincronização, sem versão anterior pra comparar.")
 
-    DESTINO.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(ORIGEM, DESTINO)
+        DESTINO.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ORIGEM, DESTINO)
+        log.info("Planilha copiada do OneDrive pro repo.")
+
+    # Sempre atualiza o timestamp, mesmo sem mudança de dado -- senão a
+    # barra do portal mostra uma data velha mesmo quando o sync rodou e
+    # confirmou que a base já estava em dia (o que confundia quem via a
+    # data parada e achava que o robô não tinha rodado).
     ARQUIVO_TIMESTAMP.write_text(datetime.now().astimezone().isoformat(), encoding="utf-8")
-    log.info("Planilha copiada do OneDrive pro repo.")
 
     _git("add", str(DESTINO.relative_to(RAIZ_REPO)), str(ARQUIVO_TIMESTAMP.relative_to(RAIZ_REPO)))
 
@@ -167,7 +177,12 @@ def main():
         log.info("Cópia igual à já commitada, nada pra commitar.")
         return
 
-    codigo, saida = _git("commit", "-m", "Atualiza planilha de implantação (sync automático)")
+    mensagem = (
+        "Atualiza planilha de implantação (sync automático)"
+        if houve_mudanca
+        else "Atualiza data do último sync (planilha sem mudanças)"
+    )
+    codigo, saida = _git("commit", "-m", mensagem)
     if codigo != 0:
         log.error("git commit falhou:\n%s", saida)
         sys.exit(1)
